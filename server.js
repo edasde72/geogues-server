@@ -1,24 +1,62 @@
+// server.js
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
-app.use(express.static(__dirname));
+
+// BEZPEČNOST: Statické soubory pouze z public složky (nesdílíme zdrojáky)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// BEZPEČNOST: CORS omezený na konkrétní originy
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000'];
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy violation'));
+    }
+  },
+  credentials: true
+}));
+
+// BEZPEČNOST: Rate limiting pro HTTP
+const requestCounts = new Map();
+setInterval(() => requestCounts.clear(), 60000); // Reset každou minutu
+
+app.use((req, res, next) => {
+  const ip = req.ip;
+  const count = requestCounts.get(ip) || 0;
+  if (count > 100) return res.status(429).json({ error: 'Too many requests' });
+  requestCounts.set(ip, count + 1);
+  
+  // BEZPEČNOST: Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: { 
+    origin: allowedOrigins,
+    credentials: true 
+  },
+  // BEZPEČNOST: Limits pro prevenci DoS
+  maxHttpBufferSize: 1e6, // 1MB
+  pingTimeout: 60000
 });
 
-const rooms = new Map();
-
+// Datový model zemí (single source of truth)
 const countriesData = {
   europe: [
     ["Albánie",41.32,19.81,["albania"]],["Rakousko",48.20,16.37,["austria"]],
@@ -66,7 +104,6 @@ const countriesData = {
   ]
 };
 
-// Vytvoření "world" - všechny země dohromady
 countriesData.world = [
   ...countriesData.europe,
   ...countriesData.asia,
@@ -75,20 +112,73 @@ countriesData.world = [
   ...countriesData.oceania
 ];
 
-function getCountry(continent = 'world') {
+// Validace a sanitizace
+const MAX_MESSAGE_LENGTH = 200;
+const MAX_ROOM_CODE_LENGTH = 10;
+const sanitizeString = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.slice(0, MAX_MESSAGE_LENGTH).replace(/[<>]/g, '');
+};
+
+const validateContinent = (c) => ['world','europe','asia','americas','africa','oceania'].includes(c) ? c : 'world';
+
+// Správa místností s cleanup
+const rooms = new Map();
+const socketRooms = new Map(); // Map<socketId, roomCode>
+
+// Cleanup prázdných místností každých 5 minut
+setInterval(() => {
+  for (const [code, room] of rooms.entries()) {
+    const hostActive = io.sockets.sockets.get(room.host);
+    const guestActive = room.guest ? io.sockets.sockets.get(room.guest) : false;
+    
+    if (!hostActive && !guestActive) {
+      rooms.delete(code);
+      console.log(`Cleaned up room ${code}`);
+    }
+  }
+}, 300000);
+
+function generateRoomCode() {
+  return crypto.randomBytes(3).toString('hex').toUpperCase(); // Bezpečnější než Math.random
+}
+
+function getRandomCountry(continent = 'world') {
   const list = countriesData[continent] || countriesData.world;
   return list[Math.floor(Math.random() * list.length)];
 }
 
+// Rate limiter pro socket events
+const socketRateLimits = new Map();
+function checkRateLimit(socketId, event, limit = 10, window = 10000) {
+  const key = `${socketId}:${event}`;
+  const now = Date.now();
+  const entry = socketRateLimits.get(key) || { count: 0, resetTime: now + window };
+  
+  if (now > entry.resetTime) {
+    entry.count = 0;
+    entry.resetTime = now + window;
+  }
+  
+  if (entry.count >= limit) return false;
+  entry.count++;
+  socketRateLimits.set(key, entry);
+  return true;
+}
+
 io.on("connection", socket => {
-  console.log("Připojen:", socket.id);
-  let currentRoom = null;
-  let playerRole = null;
+  console.log("Connected:", socket.id);
+  
+  // Odeslat seznam zemí klientovi (eliminace duplicity)
+  socket.emit('init-data', { countries: countriesData });
 
   socket.on("create-room", (continent = 'world') => {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    currentRoom = code;
-    playerRole = "host";
+    if (!checkRateLimit(socket.id, 'create-room', 3, 60000)) {
+      return socket.emit('error', 'Too many rooms created');
+    }
+    
+    const code = generateRoomCode();
+    const validContinent = validateContinent(continent);
     
     rooms.set(code, {
       host: socket.id,
@@ -101,145 +191,167 @@ io.on("connection", socket => {
         finished: false,
         hostOut: false,
         guestOut: false,
-        continent: continent,
-        started: false
+        continent: validContinent,
+        started: false,
+        created: Date.now()
       },
       chat: []
     });
     
     socket.join(code);
-    socket.emit("room-created", { code, continent });
+    socketRooms.set(socket.id, code);
+    socket.emit("room-created", { code, continent: validContinent });
   });
 
   socket.on("join-room", (code) => {
-    code = code.toUpperCase();
+    if (!checkRateLimit(socket.id, 'join-room', 5, 60000)) {
+      return socket.emit('join-error', 'Too many attempts');
+    }
+    
+    if (typeof code !== 'string') return socket.emit('join-error', 'Invalid code');
+    code = code.toUpperCase().slice(0, MAX_ROOM_CODE_LENGTH);
+    
     const room = rooms.get(code);
     
-    if (!room) {
-      socket.emit("join-error", "Místnost neexistuje");
-      return;
-    }
-    if (room.guest) {
-      socket.emit("join-error", "Místnost je plná");
-      return;
-    }
+    if (!room) return socket.emit("join-error", "Místnost neexistuje");
+    if (room.guest) return socket.emit("join-error", "Místnost je plná");
+    if (room.host === socket.id) return socket.emit("join-error", "Nemůžeš se připojit do vlastní místnosti");
     
-    currentRoom = code;
-    playerRole = "guest";
     room.guest = socket.id;
-    
     socket.join(code);
-    socket.emit("joined-room", { code, continent: room.gameState.continent });
+    socketRooms.set(socket.id, code);
     
-    // Informuj hosta že je guest připojený
+    socket.emit("joined-room", { code, continent: room.gameState.continent });
     io.to(room.host).emit("guest-joined", { 
       canStart: true,
       message: "Soupeř se připojil! Můžeš spustit hru."
     });
     
-    // Pošli hostovi historii chatu
     socket.emit("chat-history", room.chat);
   });
 
-  // NOVÉ: Chat před hrou
   socket.on("chat-message", (message) => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
+    if (!checkRateLimit(socket.id, 'chat', 5, 5000)) return;
+    
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
+    
+    const room = rooms.get(code);
     if (!room) return;
     
+    const cleanText = sanitizeString(message);
+    if (!cleanText.trim()) return;
+    
     const msgData = {
-      sender: playerRole === 'host' ? 'Host' : 'Soupeř',
-      text: message,
+      sender: room.host === socket.id ? 'Host' : 'Soupeř',
+      text: cleanText,
       time: new Date().toLocaleTimeString('cs-CZ', {hour: '2-digit', minute:'2-digit'})
     };
     
     room.chat.push(msgData);
-    io.to(currentRoom).emit("new-chat-message", msgData);
+    // Limit chat history length
+    if (room.chat.length > 50) room.chat.shift();
+    
+    io.to(code).emit("new-chat-message", msgData);
   });
 
-  // NOVÉ: Start hry hostem
   socket.on("start-game", () => {
-    if (!currentRoom || playerRole !== 'host') return;
-    const room = rooms.get(currentRoom);
-    if (!room || room.gameState.started) return;
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
+    
+    const room = rooms.get(code);
+    if (!room || room.host !== socket.id || room.gameState.started) return;
     
     room.gameState.started = true;
-    io.to(currentRoom).emit("game-started");
-    startNewRound(currentRoom);
+    io.to(code).emit("game-started");
+    startNewRound(code);
   });
 
   socket.on("correct-guess", () => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
-    if (!room || room.gameState.finished || !room.gameState.started) return;
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
     
+    const room = rooms.get(code);
+    if (!room || !room.gameState.started || room.gameState.finished) return;
+    
+    const isHost = room.host === socket.id;
     room.gameState.finished = true;
-    const winner = playerRole;
     
-    if (winner === "host") room.gameState.hostScore++;
+    if (isHost) room.gameState.hostScore++;
     else room.gameState.guestScore++;
     
-    broadcastResult(room, winner);
+    broadcastResult(room, isHost ? 'host' : 'guest');
   });
 
   socket.on("out-of-attempts", () => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
-    if (!room || room.gameState.finished || !room.gameState.started) return;
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
     
-    if (playerRole === "host") room.gameState.hostOut = true;
+    const room = rooms.get(code);
+    if (!room || !room.gameState.started || room.gameState.finished) return;
+    
+    const isHost = room.host === socket.id;
+    if (isHost) room.gameState.hostOut = true;
     else room.gameState.guestOut = true;
     
     if (room.gameState.hostOut && room.gameState.guestOut) {
       room.gameState.finished = true;
       broadcastResult(room, "draw");
     } else {
-      const other = playerRole === "host" ? room.guest : room.host;
+      const other = isHost ? room.guest : room.host;
       io.to(other).emit("opponent-out");
     }
   });
 
   socket.on("request-rematch", () => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
+    
+    const room = rooms.get(code);
     if (!room) return;
     
-    // Reset ale zachovej continent a chat
-    const continent = room.gameState.continent;
-    const chat = room.chat;
+    // Reset game state
+    room.gameState.round = 1;
+    room.gameState.hostScore = 0;
+    room.gameState.guestScore = 0;
+    room.gameState.finished = false;
+    room.gameState.hostOut = false;
+    room.gameState.guestOut = false;
+    room.gameState.started = true;
     
-    room.gameState = {
-      round: 1,
-      hostScore: 0,
-      guestScore: 0,
-      currentCountry: null,
-      finished: false,
-      hostOut: false,
-      guestOut: false,
-      continent: continent,
-      started: true
-    };
-    
-    io.to(currentRoom).emit("game-started");
-    startNewRound(currentRoom);
+    io.to(code).emit("game-started");
+    startNewRound(code);
   });
 
   socket.on("disconnect", () => {
-    if (currentRoom && rooms.has(currentRoom)) {
-      const room = rooms.get(currentRoom);
-      const other = playerRole === "host" ? room.guest : room.host;
-      if (other) io.to(other).emit("opponent-left");
-      rooms.delete(currentRoom);
+    const code = socketRooms.get(socket.id);
+    if (code && rooms.has(code)) {
+      const room = rooms.get(code);
+      const isHost = room.host === socket.id;
+      
+      // Notify other player
+      const other = isHost ? room.guest : room.host;
+      if (other) {
+        io.to(other).emit("opponent-left");
+      }
+      
+      // Delayed cleanup to allow reconnect? For now immediate.
+      if (isHost) {
+        rooms.delete(code);
+      } else {
+        room.guest = null;
+        room.gameState.started = false;
+        io.to(room.host).emit("guest-left");
+      }
     }
+    socketRooms.delete(socket.id);
   });
 
   function startNewRound(code) {
     const room = rooms.get(code);
-    if (!room) return;
+    if (!room || room.gameState.round > 5) return;
     
-    if (room.gameState.round > 5) return;
-    
-    const country = getCountry(room.gameState.continent);
+    const country = getRandomCountry(room.gameState.continent);
     room.gameState.currentCountry = country;
     room.gameState.finished = false;
     room.gameState.hostOut = false;
@@ -249,58 +361,36 @@ io.on("connection", socket => {
       round: room.gameState.round,
       country: country,
       hostScore: room.gameState.hostScore,
-      guestScore: room.gameState.guestScore,
-      continent: room.gameState.continent
+      guestScore: room.gameState.guestScore
     });
   }
 
   function broadcastResult(room, roundWinner) {
     const isFinal = room.gameState.round >= 5;
     
-    io.to(room.host).emit("round-result", {
+    const payload = {
       winner: roundWinner,
-      isHost: true,
       countryName: room.gameState.currentCountry[0],
       hostScore: room.gameState.hostScore,
       guestScore: room.gameState.guestScore,
       isFinal
-    });
+    };
     
-    io.to(room.guest).emit("round-result", {
-      winner: roundWinner,
-      isHost: false,
-      countryName: room.gameState.currentCountry[0],
-      hostScore: room.gameState.hostScore,
-      guestScore: room.gameState.guestScore,
-      isFinal
-    });
+    io.to(room.host).emit("round-result", { ...payload, isHost: true });
+    io.to(room.guest).emit("round-result", { ...payload, isHost: false });
     
     if (!isFinal) {
       room.gameState.round++;
-      setTimeout(() => startNewRound(currentRoom), 5000);
+      setTimeout(() => startNewRound(socketRooms.get(room.host)), 5000);
     } else {
       let gameWinner;
-      if (room.gameState.hostScore > room.gameState.guestScore) {
-        gameWinner = "host";
-      } else if (room.gameState.hostScore < room.gameState.guestScore) {
-        gameWinner = "guest";
-      } else {
-        gameWinner = "draw";
-      }
+      if (room.gameState.hostScore > room.gameState.guestScore) gameWinner = "host";
+      else if (room.gameState.hostScore < room.gameState.guestScore) gameWinner = "guest";
+      else gameWinner = "draw";
       
       setTimeout(() => {
-        io.to(room.host).emit("game-over", {
-          winner: gameWinner,
-          isHost: true,
-          hostScore: room.gameState.hostScore,
-          guestScore: room.gameState.guestScore
-        });
-        io.to(room.guest).emit("game-over", {
-          winner: gameWinner,
-          isHost: false,
-          hostScore: room.gameState.hostScore,
-          guestScore: room.gameState.guestScore
-        });
+        io.to(room.host).emit("game-over", { winner: gameWinner, ...payload });
+        io.to(room.guest).emit("game-over", { winner: gameWinner, ...payload });
       }, 5000);
     }
   }
@@ -308,5 +398,5 @@ io.on("connection", socket => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("Server běží na portu", PORT);
+  console.log(`Server running securely on port ${PORT}`);
 });
