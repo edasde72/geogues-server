@@ -1,28 +1,32 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoGuessr</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>GeoGuessr Secure</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/oyqYbDS+g6k3EKYKT27wbId572qHFFDFZ/zNwBRiJ0YPm3RSlB+XIoUiz8PFsig" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100vh;
+            height: 100dvh; /* Dynamic viewport height pro mobile */
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            touch-action: manipulation;
         }
         #game-container {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 20px;
-            gap: 20px;
+            padding: clamp(10px, 2vw, 20px);
+            gap: clamp(10px, 2vw, 20px);
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
@@ -35,6 +39,7 @@
             z-index: 1;
             position: relative;
             min-height: 300px;
+            overflow: hidden;
         }
         #map-loader {
             position: absolute;
@@ -50,6 +55,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
+            pointer-events: none;
         }
         .spinner {
             width: 24px;
@@ -60,26 +66,27 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .map-container { position: relative; flex: 1; display: flex; }
+        .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
         .controls {
             background: rgba(255,255,255,0.95);
-            padding: 25px;
+            padding: clamp(15px, 3vw, 25px);
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             text-align: center;
-            max-height: 90vh;
+            max-height: 45vh;
             overflow-y: auto;
+            backdrop-filter: blur(10px);
         }
         h1 {
             color: #333;
             margin-bottom: 10px;
-            font-size: 28px;
+            font-size: clamp(24px, 5vw, 28px);
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
-        /* NOVÉ: Lobby styly */
         .continent-select { 
             padding: 15px; 
             border-radius: 10px; 
@@ -89,10 +96,12 @@
             width: 100%;
             background: white;
             cursor: pointer;
+            transition: all 0.2s;
         }
         .continent-select:focus {
             outline: none;
             border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         .chat-box {
             background: #f5f5f5;
@@ -114,10 +123,12 @@
             background: white;
             padding: 10px;
             border-radius: 8px;
+            word-break: break-word;
         }
         .chat-message {
             padding: 5px 0;
             border-bottom: 1px solid #eee;
+            line-height: 1.4;
         }
         .chat-message:last-child { border-bottom: none; }
         .chat-message b { color: #667eea; }
@@ -138,7 +149,15 @@
             padding: 10px 20px;
             font-size: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
         }
+        .chat-input button:active { transform: scale(0.95); }
+        .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .lobby-info {
             background: #667eea;
             color: white;
@@ -151,15 +170,14 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
+            transition: all 0.3s;
         }
         .lobby-info.waiting { 
-    background: #f59e0b !important; 
-    color: #000 !important; /* Černý text */
-    font-weight: bold !important;
-}
-}
-        
+            background: #f59e0b; 
+            color: #000;
+        }
         .lobby-info.ready { background: #10b981; }
+        
         .start-btn {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
             font-size: 20px !important;
@@ -184,25 +202,34 @@
             border-radius: 10px;
             margin: 15px 0;
             border: 3px dashed #667eea;
+            user-select: all;
+            cursor: pointer;
         }
+        .code-display:active { background: #e0e0e0; }
         
-        .menu { display: flex; flex-direction: column; gap: 20px; max-width: 400px; margin: 0 auto; }
-        .menu-btn { padding: 20px; font-size: 18px; border: none; border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: transform 0.2s; }
-        .menu-btn:hover { transform: scale(1.05); }
+        .menu { display: flex; flex-direction: column; gap: 20px; max-width: 400px; margin: 0 auto; width: 100%; }
+        .menu-btn { 
+            padding: 20px; 
+            font-size: 18px; 
+            border: none; 
+            border-radius: 15px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            cursor: pointer; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .menu-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        .menu-btn:active { transform: translateY(0); }
         .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .mp-section {
             margin-top: 20px;
             padding-top: 20px;
             border-top: 2px solid #eee;
         }
-        .mp-section p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
         
-        .mp-stats { display: flex; justify-content: space-between; margin-bottom: 15px; padding: 10px; background: #f8f9ff; border-radius: 10px; }
-        .player-stat { display: flex; flex-direction: column; gap: 5px; }
+        .mp-stats { display: flex; justify-content: space-between; margin-bottom: 15px; padding: 10px; background: #f8f9ff; border-radius: 10px; gap: 10px; }
+        .player-stat { display: flex; flex-direction: column; gap: 5px; flex: 1; }
         .player-name { font-weight: bold; font-size: 14px; }
         .you { color: #667eea; }
         .opponent { color: #e74c3c; }
@@ -210,39 +237,118 @@
         
         .stats-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
         .stat-box { background: #f8f9ff; padding: 10px 20px; border-radius: 10px; font-size: 16px; }
-        
+
         .input-wrapper { position: relative; max-width: 500px; margin: 0 auto 15px; }
         .input-group { display: flex; gap: 10px; }
-        input { flex: 1; padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 16px; outline: none; }
+        input { 
+            flex: 1; 
+            padding: 15px 20px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 50px; 
+            font-size: 16px; 
+            outline: none; 
+            transition: border-color 0.2s;
+        }
         input:focus { border-color: #667eea; }
         input.shake { animation: shake 0.5s; border-color: #ef4444; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
-        button { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        
+        button { 
+            padding: 15px 30px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border: none; 
+            border-radius: 50px; 
+            font-size: 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
         button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc; }
         button.small { padding: 10px 20px; font-size: 14px; background: #999; }
         button.rematch { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-top: 10px; }
         button.menu { background: #666; margin-left: 10px; }
         
-        #hint { font-weight: 600; color: #667eea; margin-top: 10px; font-size: 18px; min-height: 50px; }
+        #hint { font-weight: 600; color: #667eea; margin-top: 10px; font-size: 18px; min-height: 50px; line-height: 1.4; }
         .success { color: #10b981; font-size: 20px; font-weight: bold; }
         .fail { color: #ef4444; }
         .waiting { color: #f59e0b; }
         
-        .autocomplete-items { position: absolute; border: 1px solid #ddd; z-index: 99; top: 100%; left: 0; right: 0; margin: 5px 10px 0 10px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; display: none; }
+        .autocomplete-items { 
+            position: absolute; 
+            border: 1px solid #ddd; 
+            z-index: 99; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            margin: 5px 10px 0 10px; 
+            border-radius: 15px; 
+            overflow: hidden; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); 
+            max-height: 200px; 
+            overflow-y: auto; 
+            display: none; 
+            background: white;
+        }
         .autocomplete-items.active { display: block; }
-        .autocomplete-item { padding: 12px 20px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #f0f0f0; text-align: left; }
+        .autocomplete-item { 
+            padding: 12px 20px; 
+            cursor: pointer; 
+            background-color: #fff; 
+            border-bottom: 1px solid #f0f0f0; 
+            text-align: left; 
+            transition: background-color 0.2s;
+        }
         .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
         
         .hidden { display: none !important; }
         .round-badge { background: #667eea; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-bottom: 10px; display: inline-block; }
         
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 25px; opacity: 0; transition: opacity 0.3s; z-index: 1000; }
-        .toast.show { opacity: 1; }
+        .toast { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #333; 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 25px; 
+            opacity: 0; 
+            transition: opacity 0.3s, transform 0.3s; 
+            z-index: 10000; 
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
         
-        #history-panel { max-height: 100px; overflow-x: auto; display: flex; gap: 10px; padding: 10px; background: #f0f0f0; border-radius: 10px; margin-bottom: 10px; flex-wrap: nowrap; }
-        .history-item { flex-shrink: 0; background: white; padding: 5px 10px; border-radius: 8px; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; min-width: 60px; }
-        .history-item.correct { border-left: 3px solid #10b981; }
-        .history-item.wrong { border-left: 3px solid #ef4444; }
+        #history-panel { 
+            max-height: 100px; 
+            overflow-x: auto; 
+            display: flex; 
+            gap: 10px; 
+            padding: 10px; 
+            background: #f0f0f0; 
+            border-radius: 10px; 
+            margin-bottom: 10px; 
+            flex-wrap: nowrap; 
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+        .history-item { 
+            flex-shrink: 0; 
+            background: white; 
+            padding: 5px 10px; 
+            border-radius: 8px; 
+            font-size: 12px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-width: 60px;
+            border-left: 3px solid transparent;
+        }
+        .history-item.correct { border-left-color: #10b981; }
+        .history-item.wrong { border-left-color: #ef4444; }
         .history-flag { font-size: 20px; margin-bottom: 2px; }
         
         #game-over {
@@ -255,6 +361,7 @@
             z-index: 9999;
             flex-direction: column;
             color: white;
+            padding: 20px;
         }
         #game-over.show { display: flex; }
         .game-over-box {
@@ -264,9 +371,23 @@
             border-radius: 20px;
             text-align: center;
             max-width: 400px;
-            width: 90%;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
         .final-score { font-size: 48px; font-weight: bold; color: #667eea; margin: 20px 0; }
+        
+        @media (max-width: 600px) {
+            .controls { padding: 15px; }
+            .code-display { font-size: 24px; letter-spacing: 3px; }
+            button { padding: 12px 20px; font-size: 14px; }
+            .input-group { flex-direction: column; }
+            .menu-btn { padding: 15px; font-size: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -278,8 +399,8 @@
         <h2>Konec hry!</h2>
         <div class="final-score" id="final-score">0</div>
         <p id="game-over-msg"></p>
-        <button class="rematch" onclick="rematch()">🔄 Zahrát znovu</button>
-        <button class="menu" onclick="backToMenu()">🏠 Hlavní menu</button>
+        <button class="rematch" onclick="game.rematch()">🔄 Zahrát znovu</button>
+        <button class="menu" onclick="game.backToMenu()">🏠 Hlavní menu</button>
     </div>
 </div>
 
@@ -290,7 +411,7 @@
         <p style="margin-bottom: 20px; color: #666;">Hádej zemi podle mapy!</p>
         
         <div class="menu" id="main-menu">
-            <button class="menu-btn single" onclick="startSingle()">👤 Single Player</button>
+            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player</button>
             
             <div class="mp-section">
                 <p>👥 Multiplayer:</p>
@@ -300,9 +421,10 @@
                     <option value="asia">🌏 Jen Asie (20 zemí)</option>
                     <option value="americas">🌎 Jen Amerika (9 zemí)</option>
                     <option value="africa">🌍 Jen Afrika (6 zemí)</option>
+                    <option value="oceania">🌏 Jen Oceánie (2 země)</option>
                 </select>
-                <button class="menu-btn" onclick="startHost()">🎮 Vytvořit hru (Host)</button>
-                <button class="menu-btn" onclick="showJoinManual()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin-top: 10px;">🔗 Připojit se ke hře</button>
+                <button class="menu-btn" onclick="game.startHost()">🎮 Vytvořit hru (Host)</button>
+                <button class="menu-btn" onclick="game.showJoinManual()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin-top: 10px;">🔗 Připojit se ke hře</button>
             </div>
         </div>
         
@@ -312,31 +434,29 @@
                 ⏳ Čekání na soupeře...
             </div>
             
-            <div class="code-display" id="room-code">----</div>
-            <p style="color: #666; font-size: 12px; margin-bottom: 15px;">Pošli tento kód kamarádovi</p>
+            <div class="code-display" id="room-code" onclick="game.copyLink()">----</div>
+            <p style="color: #666; font-size: 12px; margin-bottom: 15px;">Klikni pro zkopírování odkazu</p>
             
             <div class="chat-box">
-                <div class="chat-messages" id="host-chat">
-                    <div class="chat-message system"><b>Systém:</b> Čekací místnost vytvořena...</div>
-                </div>
+                <div class="chat-messages" id="host-chat"></div>
                 <div class="chat-input">
-                    <input type="text" id="host-chat-input" placeholder="Napiš zprávu..." maxlength="100" onkeypress="if(event.key==='Enter') sendChat('host')">
-                    <button onclick="sendChat('host')">Odeslat</button>
+                    <input type="text" id="host-chat-input" placeholder="Napiš zprávu..." maxlength="200" autocomplete="off">
+                    <button onclick="game.sendChat('host')">Odeslat</button>
                 </div>
             </div>
             
-            <button id="start-game-btn" class="menu-btn start-btn hidden" onclick="startGameFromLobby()">▶️ SPUSTIT HRU</button>
-            <button onclick="backToMenu()" class="small" style="margin-top: 10px; width: 100%;">Zrušit</button>
+            <button id="start-game-btn" class="menu-btn start-btn hidden" onclick="game.startGameFromLobby()">▶️ SPUSTIT HRU</button>
+            <button onclick="game.showMain()" class="small" style="margin-top: 10px; width: 100%;">Zrušit</button>
         </div>
         
         <!-- GUEST JOIN & LOBBY -->
         <div id="join-panel" class="hidden" style="margin-top: 20px;">
             <div id="join-form">
                 <p style="margin-bottom: 10px;">Zadej kód místnosti:</p>
-                <input type="text" id="join-code" placeholder="např. A3F9K2" style="width: 100%; margin-bottom: 15px; padding: 15px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;">
-                <button onclick="joinGame(document.getElementById('join-code').value)" style="width: 100%; margin-bottom: 10px;">Připojit se</button>
-                <button onclick="showMain()" class="small" style="width: 100%;">Zpět</button>
-                <p id="join-error" style="color: #e74c3c; margin-top: 10px;"></p>
+                <input type="text" id="join-code" placeholder="např. A3F9K2" style="width: 100%; margin-bottom: 15px; padding: 15px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;" autocomplete="off" maxlength="10">
+                <button onclick="game.joinGame(document.getElementById('join-code').value)" style="width: 100%; margin-bottom: 10px;">Připojit se</button>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
+                <p id="join-error" style="color: #e74c3c; margin-top: 10px; min-height: 20px;"></p>
             </div>
             
             <div id="guest-lobby" class="hidden">
@@ -348,12 +468,12 @@
                 <div class="chat-box">
                     <div class="chat-messages" id="guest-chat"></div>
                     <div class="chat-input">
-                        <input type="text" id="guest-chat-input" placeholder="Napiš zprávu..." maxlength="100" onkeypress="if(event.key==='Enter') sendChat('guest')" disabled>
-                        <button onclick="sendChat('guest')" id="guest-chat-btn" disabled>Odeslat</button>
+                        <input type="text" id="guest-chat-input" placeholder="Napiš zprávu..." maxlength="200" autocomplete="off" disabled>
+                        <button onclick="game.sendChat('guest')" id="guest-chat-btn" disabled>Odeslat</button>
                     </div>
                 </div>
                 
-                <button onclick="backToMenu()" class="small" style="width: 100%;">Odpojit se</button>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Odpojit se</button>
             </div>
         </div>
     </div>
@@ -390,118 +510,127 @@
             <div class="input-wrapper">
                 <div class="input-group">
                     <input type="text" id="guessInput" placeholder="Napiš zemi..." autocomplete="off" disabled>
-                    <button onclick="makeGuess()" id="guessBtn" disabled>Hádat</button>
+                    <button onclick="game.makeGuess()" id="guessBtn" disabled>Hádat</button>
                 </div>
                 <div id="autocomplete-list" class="autocomplete-items"></div>
             </div>
             
             <p id="hint">Příprava hry...</p>
-            <button onclick="backToMenu()" class="small">← Odpojit se</button>
+            <button onclick="game.backToMenu()" class="small">← Odpojit se</button>
         </div>
     </div>
 </div>
 
 <script>
-    const socket = io();
+// BEZPEČNÁ APLIKACE - IIFE pro izolaci scope
+const game = (function() {
+    'use strict';
+    
+    // Bezpečnostní funkce pro sanitizaci HTML
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Bezpečné vytváření DOM elementů
+    function createElement(tag, className, text) {
+        const el = document.createElement(tag);
+        if (className) el.className = className;
+        if (text !== undefined) el.textContent = text;
+        return el;
+    }
+    
+    // Audio context pro zvuky
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
     function playSound(type) {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        if (type === 'success') {
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.3);
-        } else if (type === 'error') {
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.3);
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            if (type === 'success') {
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'error') {
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        } catch (e) {
+            console.error('Audio error:', e);
         }
     }
 
-    const countries = [
-        ["Afghánistán",34.52,69.17,["afghanistan"]],["Albánie",41.32,19.81,["albania"]],
-        ["Alžírsko",28.03,1.65,["algeria"]],["Argentina",-34.60,-58.38,["argentyna"]],
-        ["Austrálie",-35.28,149.13,["australia"]],["Rakousko",48.20,16.37,["austria"]],
-        ["Bangladéš",23.81,90.41,["bangladesh"]],["Belgie",50.85,4.35,["belgium"]],
-        ["Brazílie",-15.79,-47.88,["brazil"]],["Bulharsko",42.69,23.32,["bulgaria"]],
-        ["Kanada",45.42,-75.69,["canada"]],["Chile",-33.44,-70.66,["chile"]],
-        ["Čína",39.90,116.41,["china"]],["Kolumbie",4.71,-74.07,["colombia"]],
-        ["Chorvatsko",45.81,15.98,["croatia"]],["Kuba",23.11,-82.36,["cuba"]],
-        ["Česko",50.07,14.43,["czech","cesko"]],["Dánsko",55.67,12.56,["denmark"]],
-        ["Egypt",30.04,31.23,["egypt"]],["Estonsko",59.43,24.75,["estonia"]],
-        ["Finsko",60.16,24.93,["finland"]],["Francie",48.85,2.35,["france"]],
-        ["Německo",52.52,13.40,["germany"]],["Řecko",37.98,23.72,["greece"]],
-        ["Maďarsko",47.49,19.04,["hungary"]],["Island",64.14,-21.94,["iceland"]],
-        ["Indie",28.61,77.20,["india"]],["Indonésie",-6.20,106.84,["indonesia"]],
-        ["Irán",35.68,51.38,["iran"]],["Irák",33.31,44.36,["iraq"]],
-        ["Irsko",53.34,-6.26,["ireland"]],["Izrael",31.76,35.21,["israel"]],
-        ["Itálie",41.90,12.49,["italy"]],["Japonsko",35.67,139.65,["japan"]],
-        ["Jordánsko",31.94,35.92,["jordan"]],["Kazachstán",51.16,71.42,["kazakhstan"]],
-        ["Keňa",-1.29,36.82,["kenya"]],["Litva",54.68,25.27,["lithuania"]],
-        ["Malajsie",3.13,101.68,["malaysia"]],["Mexiko",19.43,-99.13,["mexico"]],
-        ["Maroko",34.02,-6.84,["morocco"]],["Nizozemsko",52.36,4.90,["netherlands"]],
-        ["Nový Zéland",-41.28,174.77,["zealand"]],["Norsko",59.91,10.75,["norway"]],
-        ["Pákistán",33.68,73.04,["pakistan"]],["Peru",-12.04,-77.04,["peru"]],
-        ["Filipíny",14.59,120.98,["philippines"]],["Polsko",52.22,21.01,["poland"]],
-        ["Portugalsko",38.72,-9.13,["portugal"]],["Rumunsko",44.42,26.10,["romania"]],
-        ["Rusko",55.75,37.61,["russia"]],["Saúdská Arábie",24.71,46.67,["saudi"]],
-        ["Singapur",1.35,103.81,["singapore"]],["Slovensko",48.14,17.10,["slovakia"]],
-        ["Slovinsko",46.05,14.50,["slovenia"]],["Jižní Afrika",-25.74,28.22,["africa"]],
-        ["Jižní Korea",37.56,126.97,["korea"]],["Španělsko",40.41,-3.70,["spain"]],
-        ["Švédsko",59.32,18.06,["sweden"]],["Švýcarsko",46.94,7.44,["switzerland"]],
-        ["Thajsko",13.75,100.50,["thailand"]],["Tunisko",36.80,10.18,["tunisia"]],
-        ["Turecko",39.93,32.85,["turkey"]],["Ukrajina",50.45,30.52,["ukraine"]],
-        ["Velká Británie",51.50,-0.12,["britain","uk"]],["USA",38.90,-77.03,["usa"]],
-        ["Vietnam",21.02,105.83,["vietnam"]]
-    ];
-
-    let map, currentCountry, attempts = 0;
-    const maxAttempts = 5;
-    const zoomLevels = [16, 13, 10, 6, 3];
-    const zoomLabels = ["Velmi detailní","Detailní","Město","Region","Kontinent"];
+    // Data od serveru (eliminace duplicity)
+    let countries = [];
+    const socket = io({
+        transports: ['websocket'],
+        upgrade: true,
+        rememberUpgrade: false
+    });
     
-    let gameMode = null;
-    let score = 0, streak = 0;
-    let isHost = false;
-    let roomCode = null;
-    let selectedContinent = 'world';
-    let mpState = { round: 1, yourScore: 0, oppScore: 0, finished: false };
-    let singleHistory = [];
+    socket.on('init-data', (data) => {
+        countries = data.countries.world || [];
+    });
 
-    // Socket.io eventy
+    // Konfigurace hry
+    const config = {
+        maxAttempts: 5,
+        zoomLevels: [16, 13, 10, 6, 3],
+        zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"]
+    };
+    
+    // Stav hry
+    const state = {
+        map: null,
+        currentCountry: null,
+        attempts: 0,
+        gameMode: null,
+        score: 0,
+        streak: 0,
+        isHost: false,
+        roomCode: null,
+        selectedContinent: 'world',
+        mpState: { round: 1, yourScore: 0, oppScore: 0, finished: false },
+        singleHistory: [],
+        lastGuess: 0 // Rate limiting
+    };
+
+    // Socket eventy
     socket.on('room-created', (data) => {
-        roomCode = data.code;
-        selectedContinent = data.continent;
-        isHost = true;
-        document.getElementById('room-code').textContent = roomCode;
+        state.roomCode = data.code;
+        state.selectedContinent = data.continent;
+        state.isHost = true;
+        document.getElementById('room-code').textContent = escapeHtml(data.code);
         document.getElementById('main-menu').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
     });
 
     socket.on('guest-joined', (data) => {
-        showToast(data.message);
-        document.getElementById('host-lobby-info').innerHTML = '✅ Soupeř připojen! Připraveni?';
-        document.getElementById('host-lobby-info').classList.remove('waiting');
-        document.getElementById('host-lobby-info').classList.add('ready');
+        showToast(escapeHtml(data.message));
+        const info = document.getElementById('host-lobby-info');
+        info.innerHTML = '✅ Soupeř připojen! Připraveni?';
+        info.classList.remove('waiting');
+        info.classList.add('ready');
         document.getElementById('start-game-btn').classList.remove('hidden');
         addChatMessage('Systém', 'Soupeř se připojil do místnosti!', 'host-chat');
     });
 
     socket.on('joined-room', (data) => {
-        roomCode = data.code;
-        selectedContinent = data.continent;
-        isHost = false;
+        state.roomCode = data.code;
+        state.selectedContinent = data.continent;
+        state.isHost = false;
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('guest-lobby').classList.remove('hidden');
         document.getElementById('guest-chat-input').disabled = false;
@@ -511,16 +640,16 @@
     });
 
     socket.on('chat-history', (messages) => {
-        messages.forEach(m => addChatMessage(m.sender, m.text, isHost ? 'host-chat' : 'guest-chat'));
+        messages.forEach(m => addChatMessage(m.sender, m.text, state.isHost ? 'host-chat' : 'guest-chat'));
     });
 
     socket.on('new-chat-message', (data) => {
-        const chatId = isHost ? 'host-chat' : 'guest-chat';
+        const chatId = state.isHost ? 'host-chat' : 'guest-chat';
         addChatMessage(data.sender, data.text, chatId);
     });
 
     socket.on('game-started', () => {
-        if (isHost) {
+        if (state.isHost) {
             document.getElementById('host-panel').classList.add('hidden');
         } else {
             document.getElementById('join-panel').classList.add('hidden');
@@ -529,16 +658,16 @@
     });
 
     socket.on('join-error', (msg) => {
-        document.getElementById('join-error').textContent = msg;
+        document.getElementById('join-error').textContent = escapeHtml(msg);
     });
 
     socket.on('new-round', (data) => {
-        currentCountry = data.country;
-        mpState.round = data.round;
-        mpState.yourScore = isHost ? data.hostScore : data.guestScore;
-        mpState.oppScore = isHost ? data.guestScore : data.hostScore;
-        mpState.finished = false;
-        attempts = 0;
+        state.currentCountry = data.country;
+        state.mpState.round = data.round;
+        state.mpState.yourScore = state.isHost ? data.hostScore : data.guestScore;
+        state.mpState.oppScore = state.isHost ? data.guestScore : data.hostScore;
+        state.mpState.finished = false;
+        state.attempts = 0;
         
         updateMPUI();
         initMap();
@@ -547,19 +676,23 @@
     });
 
     socket.on('round-result', (data) => {
-        mpState.finished = true;
+        state.mpState.finished = true;
         setInputEnabled(false);
         
-        mpState.yourScore = isHost ? data.hostScore : data.guestScore;
-        mpState.oppScore = isHost ? data.guestScore : data.hostScore;
+        state.mpState.yourScore = state.isHost ? data.hostScore : data.guestScore;
+        state.mpState.oppScore = state.isHost ? data.guestScore : data.hostScore;
+        
+        const hintEl = document.getElementById('hint');
+        hintEl.innerHTML = ''; // Clear
         
         if (data.winner === 'draw') {
-            document.getElementById('hint').innerHTML = `<span class="fail">Nikdo neuhodl! Bylo to ${data.countryName}</span>`;
-        } else if ((data.winner === 'host' && isHost) || (data.winner === 'guest' && !isHost)) {
-            document.getElementById('hint').innerHTML = `<span class="success">✓ Správně! ${data.countryName}</span>`;
+            hintEl.appendChild(createElement('span', 'fail', `Nikdo neuhodl! Bylo to ${escapeHtml(data.countryName)}`));
+        } else if ((data.winner === 'host' && state.isHost) || (data.winner === 'guest' && !state.isHost)) {
+            const span = createElement('span', 'success', `✓ Správně! ${data.countryName}`);
+            hintEl.appendChild(span);
             playSound('success');
         } else {
-            document.getElementById('hint').innerHTML = `<span class="fail">Soupeř byl rychlejší! (${data.countryName})</span>`;
+            hintEl.appendChild(createElement('span', 'fail', `Soupeř byl rychlejší! (${escapeHtml(data.countryName)})`));
             playSound('error');
         }
         
@@ -567,13 +700,14 @@
     });
 
     socket.on('opponent-out', () => {
-        if (!mpState.finished) {
-            document.getElementById('hint').innerHTML = `<span class="waiting">Soupeři došly pokusy. Pokračuj...</span>`;
+        if (!state.mpState.finished) {
+            document.getElementById('hint').innerHTML = '';
+            document.getElementById('hint').appendChild(createElement('span', 'waiting', 'Soupeři došly pokusy. Pokračuj...'));
         }
     });
 
     socket.on('game-over', (data) => {
-        const won = (data.winner === 'host' && isHost) || (data.winner === 'guest' && !isHost);
+        const won = (data.winner === 'host' && state.isHost) || (data.winner === 'guest' && !state.isHost);
         const msg = data.winner === 'draw' ? "Remíza!" : (won ? "Vyhrál jsi! 🎉" : "Prohrál jsi 😢");
         const scoreText = `${data.hostScore} : ${data.guestScore}`;
         showGameOver(scoreText, msg, true);
@@ -584,32 +718,64 @@
         backToMenu();
     });
 
-    window.onload = function() {
+    socket.on('error', (msg) => {
+        showToast('Chyba: ' + escapeHtml(msg));
+    });
+
+    // Inicializace
+    document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const joinRoom = urlParams.get('room');
         if (joinRoom) {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
-            document.getElementById('join-code').value = joinRoom;
+            document.getElementById('join-code').value = escapeHtml(joinRoom.slice(0, 10));
         }
-    };
+        
+        // Event listenery pro chat inputy (enter)
+        document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('host');
+        });
+        document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('guest');
+        });
+        document.getElementById('guessInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') makeGuess();
+        });
+        
+        // Autocomplete
+        document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
+        
+        // Zavíření autocomplete kliknutím mimo
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-wrapper')) {
+                document.getElementById('autocomplete-list').classList.remove('active');
+            }
+        });
+    });
 
     function showMain() {
         document.getElementById('main-menu').classList.remove('hidden');
         document.getElementById('host-panel').classList.add('hidden');
         document.getElementById('join-panel').classList.add('hidden');
         document.getElementById('join-error').textContent = '';
+        
         // Reset lobby
         document.getElementById('join-form').classList.remove('hidden');
         document.getElementById('guest-lobby').classList.add('hidden');
         document.getElementById('guest-chat-input').disabled = true;
         document.getElementById('guest-chat-btn').disabled = true;
         document.getElementById('guest-chat').innerHTML = '';
-        document.getElementById('host-chat').innerHTML = '<div class="chat-message system"><b>Systém:</b> Čekací místnost vytvořena...</div>';
+        document.getElementById('host-chat').innerHTML = '';
         document.getElementById('start-game-btn').classList.add('hidden');
         document.getElementById('host-lobby-info').innerHTML = '⏳ Čekání na soupeře...';
         document.getElementById('host-lobby-info').classList.add('waiting');
         document.getElementById('host-lobby-info').classList.remove('ready');
+        
+        if (state.roomCode) {
+            socket.disconnect();
+            location.reload();
+        }
     }
 
     function showJoinManual() {
@@ -619,9 +785,12 @@
     }
 
     function copyLink() {
-        const link = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+        if (!state.roomCode) return;
+        const link = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
         navigator.clipboard.writeText(link).then(() => {
             showToast('Odkaz zkopírován!');
+        }).catch(() => {
+            showToast('Chyba kopírování');
         });
     }
 
@@ -635,7 +804,7 @@
     function setInputEnabled(enabled) {
         document.getElementById('guessInput').disabled = !enabled;
         document.getElementById('guessBtn').disabled = !enabled;
-        if(enabled) {
+        if (enabled) {
             document.getElementById('guessInput').focus();
             document.getElementById('guessInput').value = '';
         }
@@ -655,15 +824,16 @@
     }
 
     function joinGame(code) {
-        if (!code) return;
-        document.getElementById('join-error').textContent = "Připojování...";
-        socket.emit('join-room', code);
+        if (!code || typeof code !== 'string') return;
+        document.getElementById('join-error').textContent = "Připojování...;
+        socket.emit('join-room', code.trim());
     }
 
     function startGameFromLobby() {
         socket.emit('start-game');
-        document.getElementById('start-game-btn').textContent = "Načítání...";
-        document.getElementById('start-game-btn').disabled = true;
+        const btn = document.getElementById('start-game-btn');
+        btn.textContent = "Načítání...";
+        btn.disabled = true;
     }
 
     function sendChat(role) {
@@ -671,6 +841,10 @@
         const input = document.getElementById(inputId);
         const text = input.value.trim();
         if (!text) return;
+        
+        // Rate limiting pro chat (jedna zpráva za 500ms)
+        if (Date.now() - state.lastChat < 500) return;
+        state.lastChat = Date.now();
         
         socket.emit('chat-message', text);
         input.value = '';
@@ -680,49 +854,71 @@
     function addChatMessage(sender, text, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        const div = document.createElement('div');
-        div.className = 'chat-message';
-        if (sender === 'Host') div.className += ' host';
-        if (sender === 'Systém') div.className += ' system';
-        div.innerHTML = `<b>${sender}:</b> ${text}`;
+        
+        const div = createElement('div', 'chat-message');
+        
+        // Bezpečné vytvoření HTML struktury
+        const b = createElement('b', sender === 'Host' ? 'host' : '', escapeHtml(sender) + ':');
+        div.appendChild(b);
+        div.appendChild(document.createTextNode(' ' + escapeHtml(text)));
+        
+        if (sender === 'Systém') div.classList.add('system');
+        
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     }
 
     function startMPGame() {
-        gameMode = 'mp';
+        state.gameMode = 'mp';
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.add('hidden');
         document.getElementById('mp-stats').classList.remove('hidden');
         document.getElementById('history-panel').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('show');
     }
 
     function initMap() {
         showMapLoader();
-        if (map) { 
-            map.remove(); 
-            map = null;
+        if (state.map) { 
+            state.map.remove(); 
+            state.map = null;
             document.getElementById('map').innerHTML = '';
         }
         
-        map = L.map('map', {
-            zoomControl: false, attributionControl: false,
-            dragging: false, scrollWheelZoom: false,
-            doubleClickZoom: false, boxZoom: false,
-            keyboard: false, touchZoom: false
-        }).setView([currentCountry[1], currentCountry[2]], zoomLevels[0]);
+        // Validace dat
+        if (!state.currentCountry || !Array.isArray(state.currentCountry) || state.currentCountry.length < 3) {
+            console.error('Invalid country data');
+            return;
+        }
+        
+        state.map = L.map('map', {
+            zoomControl: false, 
+            attributionControl: false,
+            dragging: false, 
+            scrollWheelZoom: false,
+            doubleClickZoom: false, 
+            boxZoom: false,
+            keyboard: false, 
+            touchZoom: false
+        }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            crossOrigin: true
-        }).addTo(map);
+            crossOrigin: true,
+            maxZoom: 19
+        }).addTo(state.map);
 
         setTimeout(hideMapLoader, 2000);
     }
 
     function startSingle() {
-        gameMode = 'single';
-        singleHistory = [];
+        if (countries.length === 0) {
+            showToast('Čekejte na načtení dat...');
+            return;
+        }
+        
+        state.gameMode = 'single';
+        state.singleHistory = [];
         updateHistoryDisplay();
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
@@ -731,8 +927,8 @@
         document.getElementById('history-panel').classList.remove('hidden');
         document.getElementById('game-over').classList.remove('show');
         
-        score = 0;
-        streak = 0;
+        state.score = 0;
+        state.streak = 0;
         document.getElementById('score').textContent = '0';
         document.getElementById('streak').textContent = '0';
         
@@ -740,37 +936,44 @@
     }
 
     function nextSingleRound() {
-        currentCountry = countries[Math.floor(Math.random() * countries.length)];
-        attempts = 0;
+        state.currentCountry = countries[Math.floor(Math.random() * countries.length)];
+        state.attempts = 0;
         initMap();
         updateHint();
         setInputEnabled(true);
     }
 
     function addToHistory(country, success) {
-        singleHistory.push({ country: country[0], success: success });
+        state.singleHistory.push({ country: country[0], success: success });
         updateHistoryDisplay();
     }
 
     function updateHistoryDisplay() {
         const panel = document.getElementById('history-panel');
-        if (singleHistory.length === 0) {
+        if (state.singleHistory.length === 0) {
             panel.innerHTML = '<span style="color:#999;font-size:12px;">Historie se zobrazí zde...</span>';
             return;
         }
         
-        panel.innerHTML = singleHistory.map(item => `
-            <div class="history-item ${item.success ? 'correct' : 'wrong'}">
-                <div class="history-flag">🌍</div>
-                <div>${item.country}</div>
-            </div>
-        `).join('');
+        panel.innerHTML = '';
+        state.singleHistory.forEach(item => {
+            const div = createElement('div', `history-item ${item.success ? 'correct' : 'wrong'}`);
+            const flag = createElement('div', 'history-flag', '🌍');
+            const text = createElement('div', '', escapeHtml(item.country));
+            div.appendChild(flag);
+            div.appendChild(text);
+            panel.appendChild(div);
+        });
         
         panel.scrollLeft = panel.scrollWidth;
     }
 
     function makeGuess() {
-        if (gameMode === 'mp' && mpState.finished) return;
+        // Rate limiting - max 1 tip za 300ms
+        if (Date.now() - state.lastGuess < 300) return;
+        state.lastGuess = Date.now();
+        
+        if (state.gameMode === 'mp' && state.mpState.finished) return;
         
         const input = document.getElementById('guessInput');
         const val = input.value.trim();
@@ -783,8 +986,8 @@
         }
 
         const normInput = normalize(val);
-        const normCorrect = normalize(currentCountry[0]);
-        const alternatives = currentCountry[3].map(normalize);
+        const normCorrect = normalize(state.currentCountry[0]);
+        const alternatives = state.currentCountry[3].map(normalize);
         const correct = normInput === normCorrect || alternatives.includes(normInput);
 
         if (correct) {
@@ -797,14 +1000,18 @@
     function handleCorrect() {
         playSound('success');
         
-        if (gameMode === 'single') {
-            const points = Math.floor(50 / (attempts + 1));
-            score += points;
-            streak++;
-            document.getElementById('score').textContent = score;
-            document.getElementById('streak').textContent = streak;
-            document.getElementById('hint').innerHTML = `<span class="success">✓ ${currentCountry[0]}! +${points}b</span>`;
-            addToHistory(currentCountry, true);
+        if (state.gameMode === 'single') {
+            const points = Math.floor(50 / (state.attempts + 1));
+            state.score += points;
+            state.streak++;
+            document.getElementById('score').textContent = state.score;
+            document.getElementById('streak').textContent = state.streak;
+            
+            const hint = document.getElementById('hint');
+            hint.innerHTML = '';
+            hint.appendChild(createElement('span', 'success', `✓ ${state.currentCountry[0]}! +${points}b`));
+            
+            addToHistory(state.currentCountry, true);
             setInputEnabled(false);
             setTimeout(nextSingleRound, 2000);
         } else {
@@ -814,30 +1021,35 @@
 
     function handleWrong() {
         playSound('error');
-        attempts++;
+        state.attempts++;
         const input = document.getElementById('guessInput');
         
-        if (gameMode === 'single') {
-            if (attempts >= maxAttempts) {
-                streak = 0;
-                document.getElementById('streak').textContent = 0;
-                document.getElementById('hint').innerHTML = `<span class="fail">✗ Bylo to ${currentCountry[0]}</span>`;
-                addToHistory(currentCountry, false);
+        if (state.gameMode === 'single') {
+            if (state.attempts >= config.maxAttempts) {
+                state.streak = 0;
+                document.getElementById('streak').textContent = '0';
+                
+                const hint = document.getElementById('hint');
+                hint.innerHTML = '';
+                hint.appendChild(createElement('span', 'fail', `✗ Bylo to ${state.currentCountry[0]}`));
+                
+                addToHistory(state.currentCountry, false);
                 setInputEnabled(false);
                 setTimeout(nextSingleRound, 3000);
             } else {
-                map.setView([currentCountry[1], currentCountry[2]], zoomLevels[attempts]);
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
                 updateHint();
                 input.value = '';
                 input.focus();
             }
         } else {
-            if (attempts >= maxAttempts) {
+            if (state.attempts >= config.maxAttempts) {
                 setInputEnabled(false);
                 socket.emit('out-of-attempts');
-                document.getElementById('hint').innerHTML = `<span class="waiting">Došly pokusy! Čekání na výsledek...</span>`;
+                document.getElementById('hint').innerHTML = '';
+                document.getElementById('hint').appendChild(createElement('span', 'waiting', 'Došly pokusy! Čekání na výsledek...'));
             } else {
-                map.setView([currentCountry[1], currentCountry[2]], zoomLevels[attempts]);
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
                 updateHint();
                 input.value = '';
                 input.focus();
@@ -846,18 +1058,17 @@
     }
 
     function showGameOver(scoreText, msg, showRematchBtn) {
-        document.getElementById('final-score').textContent = scoreText;
-        document.getElementById('game-over-msg').textContent = msg;
+        document.getElementById('final-score').textContent = escapeHtml(String(scoreText));
+        document.getElementById('game-over-msg').textContent = escapeHtml(msg);
         document.querySelector('.rematch').style.display = showRematchBtn ? 'inline-block' : 'none';
         document.getElementById('game-over').classList.add('show');
     }
 
     function rematch() {
-        if (gameMode === 'mp') {
+        if (state.gameMode === 'mp') {
             socket.emit('request-rematch');
             document.getElementById('game-over').classList.remove('show');
-            // Zůstaň v lobby pro novou hru
-            if (isHost) {
+            if (state.isHost) {
                 document.getElementById('host-panel').classList.remove('hidden');
                 document.getElementById('start-game-btn').classList.remove('hidden');
                 document.getElementById('start-game-btn').textContent = "▶️ SPUSTIT HRU";
@@ -876,36 +1087,59 @@
 
     function backToMenu() {
         socket.disconnect();
-        location.reload();
+        location.href = location.pathname; // Reload bez parametrů
     }
 
     function updateHint() {
-        document.getElementById('hint').textContent = `Pokus ${attempts + 1}/${maxAttempts} | ${zoomLabels[attempts]}`;
+        document.getElementById('hint').textContent = `Pokus ${state.attempts + 1}/${config.maxAttempts} | ${config.zoomLabels[state.attempts]}`;
     }
 
     function updateMPUI() {
-        document.getElementById('round').textContent = mpState.round;
-        document.getElementById('mp-your-score').textContent = mpState.yourScore;
-        document.getElementById('mp-opp-score').textContent = mpState.oppScore;
+        document.getElementById('round').textContent = state.mpState.round;
+        document.getElementById('mp-your-score').textContent = state.mpState.yourScore;
+        document.getElementById('mp-opp-score').textContent = state.mpState.oppScore;
     }
 
     function normalize(str) {
         return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
     }
 
-    document.getElementById('guessInput').addEventListener('input', function(e) {
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function handleAutocomplete(e) {
         const val = e.target.value;
         const list = document.getElementById('autocomplete-list');
         list.innerHTML = '';
         
-        if (!val) { list.classList.remove('active'); return; }
+        if (!val || !countries.length) { 
+            list.classList.remove('active'); 
+            return; 
+        }
         
-        const matches = countries.filter(c => normalize(c[0]).includes(normalize(val))).slice(0, 5);
+        const normVal = normalize(val);
+        // Safe regex - escape special chars
+        const safeVal = escapeRegex(val);
+        const regex = new RegExp(`(${safeVal})`, 'gi');
+        
+        const matches = countries.filter(c => 
+            normalize(c[0]).includes(normVal)
+        ).slice(0, 5);
         
         matches.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-item';
-            div.innerHTML = c[0].replace(new RegExp(val, 'gi'), '<strong>$&</strong>');
+            const div = createElement('div', 'autocomplete-item');
+            // Safe HTML replacement
+            const parts = c[0].split(regex);
+            parts.forEach((part, i) => {
+                if (part.toLowerCase() === val.toLowerCase()) {
+                    const strong = createElement('strong', '', escapeHtml(part));
+                    div.appendChild(strong);
+                } else {
+                    div.appendChild(document.createTextNode(part));
+                }
+            });
+            
             div.onclick = () => {
                 document.getElementById('guessInput').value = c[0];
                 list.classList.remove('active');
@@ -915,17 +1149,23 @@
         });
         
         list.classList.toggle('active', matches.length > 0);
-    });
+    }
 
-    document.getElementById('guessInput').addEventListener('keypress', e => {
-        if (e.key === 'Enter') makeGuess();
-    });
-
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.input-wrapper')) {
-            document.getElementById('autocomplete-list').classList.remove('active');
-        }
-    });
+    // Public API
+    return {
+        startSingle,
+        startHost,
+        showJoinManual,
+        joinGame,
+        startGameFromLobby,
+        sendChat,
+        copyLink,
+        makeGuess,
+        rematch,
+        backToMenu,
+        showMain
+    };
+})();
 </script>
 
 </body>
