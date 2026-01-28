@@ -305,8 +305,9 @@
     });
 
     socket.on('guest-joined', () => {
-        showToast('Soupeř se připojil!');
-    });
+    showToast('Soupeř se připojil!');
+    startMPGame(); // ← Přidat tohle
+});
 
     socket.on('new-round', (data) => {
         currentCountry = data.country;
