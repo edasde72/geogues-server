@@ -79,107 +79,54 @@ function getCountry(continent = 'world') {
 io.on("connection", socket => {
   console.log("Připojen:", socket.id);
   let currentRoom = null;
+  let playerRole = null;
 
-  socket.on("create-room", (data) => {
-    const { nickname, continent } = data;
+  socket.on("create-room", (continent) => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     currentRoom = code;
+    playerRole = "host";
     
-    const room = {
-      players: [{
-        id: socket.id,
-        nickname: nickname || "Host",
-        score: 0,
-        isHost: true,
-        ready: false,
-        guessed: false,
-        attempts: 0
-      }],
+    rooms.set(code, {
+      host: socket.id,
+      guest: null,
       gameState: {
         round: 1,
+        hostScore: 0,
+        guestScore: 0,
         currentCountry: null,
-        continent: continent || 'world',
-        started: false,
         finished: false,
-        winnersThisRound: [] // Kdo už uhodl v tomto kole
+        hostOut: false,
+        guestOut: false,
+        continent: continent || 'world',
+        started: false
       },
       chat: []
-    };
+    });
     
-    rooms.set(code, room);
     socket.join(code);
-    socket.emit("room-created", { code, players: room.players, isHost: true });
+    socket.emit("room-created", { code, continent });
   });
 
-  socket.on("join-room", (data) => {
-    const { code: roomCode, nickname } = data;
-    const code = roomCode.toUpperCase();
+  socket.on("join-room", (code) => {
+    code = code.toUpperCase();
     const room = rooms.get(code);
     
     if (!room) {
       socket.emit("join-error", "Místnost neexistuje");
       return;
     }
-    if (room.players.length >= 8) {
-      socket.emit("join-error", "Místnost je plná (max 8 hráčů)");
-      return;
-    }
-    if (room.gameState.started) {
-      socket.emit("join-error", "Hra už začala");
+    if (room.guest) {
+      socket.emit("join-error", "Místnost je plná");
       return;
     }
     
     currentRoom = code;
-    const newPlayer = {
-      id: socket.id,
-      nickname: nickname || `Hráč ${room.players.length + 1}`,
-      score: 0,
-      isHost: false,
-      ready: false,
-      guessed: false,
-      attempts: 0
-    };
+    playerRole = "guest";
+    room.guest = socket.id;
     
-    room.players.push(newPlayer);
     socket.join(code);
-    
-    socket.emit("joined-room", { code, players: room.players, isHost: false });
-    io.to(code).emit("player-joined", { 
-      players: room.players, 
-      message: `${newPlayer.nickname} se připojil` 
-    });
-  });
-
-  socket.on("player-ready", (isReady) => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
-    if (!room) return;
-    
-    const player = room.players.find(p => p.id === socket.id);
-    if (player) {
-      player.ready = isReady;
-      io.to(currentRoom).emit("players-updated", room.players);
-      
-      // Kontrola jestli všichni jsou ready (min 2 hráči)
-      const allReady = room.players.length >= 2 && room.players.every(p => p.ready);
-      if (allReady) {
-        io.to(currentRoom).emit("all-ready");
-      }
-    }
-  });
-
-  socket.on("start-game", () => {
-    if (!currentRoom) return;
-    const room = rooms.get(currentRoom);
-    if (!room) return;
-    
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player?.isHost) return;
-    if (room.players.length < 2) return;
-    
-    room.gameState.started = true;
-    io.to(currentRoom).emit("game-started");
-    startNewRound(currentRoom);
+    socket.emit("joined-room", { code, continent: room.gameState.continent });
+    io.to(room.host).emit("guest-joined", { message: "Soupeř se připojil!" });
   });
 
   socket.on("chat-message", (message) => {
@@ -187,11 +134,9 @@ io.on("connection", socket => {
     const room = rooms.get(currentRoom);
     if (!room) return;
     
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player) return;
-    
+    const sender = playerRole === "host" ? "Host" : "Soupeř";
     const msgData = {
-      sender: player.nickname,
+      sender: sender,
       text: message,
       time: new Date().toLocaleTimeString('cs-CZ', {hour: '2-digit', minute:'2-digit'})
     };
@@ -200,53 +145,45 @@ io.on("connection", socket => {
     io.to(currentRoom).emit("new-chat-message", msgData);
   });
 
-  socket.on("make-guess", (guess) => {
+  socket.on("start-game", () => {
     if (!currentRoom) return;
     const room = rooms.get(currentRoom);
-    if (!room || !room.gameState.started || room.gameState.finished) return;
+    if (!room) return;
+    if (playerRole !== "host") return;
     
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player || player.guessed) return;
+    room.gameState.started = true;
+    io.to(currentRoom).emit("game-started");
+    startNewRound(currentRoom);
+  });
+
+  socket.on("correct-guess", () => {
+    if (!currentRoom) return;
+    const room = rooms.get(currentRoom);
+    if (!room || room.gameState.finished || !room.gameState.started) return;
     
-    const country = room.gameState.currentCountry;
-    const normGuess = guess.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-    const normCorrect = country[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-    const alternatives = country[3].map(a => a.toLowerCase());
+    room.gameState.finished = true;
+    const winner = playerRole;
     
-    const correct = normGuess === normCorrect || alternatives.includes(normGuess);
+    if (winner === "host") room.gameState.hostScore++;
+    else room.gameState.guestScore++;
     
-    if (correct) {
-      // Správná odpověď - přidělení bodů podle pořadí
-      player.guessed = true;
-      const finishOrder = room.gameState.winnersThisRound.length;
-      const points = finishOrder === 0 ? 100 : (finishOrder === 1 ? 50 : (finishOrder === 2 ? 30 : 10));
-      player.score += points;
-      room.gameState.winnersThisRound.push(player.id);
-      
-      io.to(currentRoom).emit("player-guessed", {
-        playerId: player.id,
-        playerName: player.nickname,
-        correct: true,
-        points: points,
-        position: finishOrder + 1,
-        countryName: country[0]
-      });
-      
-      checkRoundEnd(room);
+    broadcastResult(room, winner);
+  });
+
+  socket.on("out-of-attempts", () => {
+    if (!currentRoom) return;
+    const room = rooms.get(currentRoom);
+    if (!room || room.gameState.finished || !room.gameState.started) return;
+    
+    if (playerRole === "host") room.gameState.hostOut = true;
+    else room.gameState.guestOut = true;
+    
+    if (room.gameState.hostOut && room.gameState.guestOut) {
+      room.gameState.finished = true;
+      broadcastResult(room, "draw");
     } else {
-      // Špatná odpověď
-      player.attempts++;
-      if (player.attempts >= 5) {
-        player.guessed = true; // Už nemůže hádat
-        io.to(currentRoom).emit("player-out", {
-          playerId: player.id,
-          playerName: player.nickname
-        });
-        checkRoundEnd(room);
-      } else {
-        // Pouze dotyčnému pošleme že má špatně a má zoom
-        socket.emit("wrong-guess", { attempts: player.attempts });
-      }
+      const other = playerRole === "host" ? room.guest : room.host;
+      io.to(other).emit("opponent-out");
     }
   });
 
@@ -255,54 +192,25 @@ io.on("connection", socket => {
     const room = rooms.get(currentRoom);
     if (!room) return;
     
-    // Reset herního stavu ale zachovat hráče
+    // Reset herního stavu
     room.gameState.round = 1;
-    room.gameState.started = false;
+    room.gameState.hostScore = 0;
+    room.gameState.guestScore = 0;
     room.gameState.finished = false;
-    room.gameState.winnersThisRound = [];
-    room.players.forEach(p => {
-      p.score = 0;
-      p.ready = false;
-      p.guessed = false;
-      p.attempts = 0;
-    });
+    room.gameState.hostOut = false;
+    room.gameState.guestOut = false;
+    room.gameState.started = false;
+    room.chat = []; // Vyčistit chat pro novou hru
     
-    io.to(currentRoom).emit("rematch-started", { players: room.players });
+    io.to(currentRoom).emit("rematch-started");
   });
 
   socket.on("disconnect", () => {
     if (currentRoom && rooms.has(currentRoom)) {
       const room = rooms.get(currentRoom);
-      const playerIndex = room.players.findIndex(p => p.id === socket.id);
-      
-      if (playerIndex !== -1) {
-        const disconnectedPlayer = room.players[playerIndex];
-        room.players.splice(playerIndex, 1);
-        
-        // Předání hosta dalšímu hráči
-        if (disconnectedPlayer.isHost && room.players.length > 0) {
-          room.players[0].isHost = true;
-        }
-        
-        if (room.players.length === 0) {
-          rooms.delete(currentRoom);
-        } else {
-          io.to(currentRoom).emit("player-left", {
-            players: room.players,
-            message: `${disconnectedPlayer.nickname} se odpojil`
-          });
-          
-          // Kontrola konce kola pokud byl ten kdo odešel aktivní
-          if (room.gameState.started && !room.gameState.finished) {
-            checkRoundEnd(room);
-          }
-          
-          // Konec hry pokud zůstal jen jeden
-          if (room.players.length === 1 && room.gameState.started) {
-            endGame(room, "Ostatní hráči odešli");
-          }
-        }
-      }
+      const other = playerRole === "host" ? room.guest : room.host;
+      if (other) io.to(other).emit("opponent-left");
+      rooms.delete(currentRoom);
     }
   });
 
@@ -318,43 +226,64 @@ io.on("connection", socket => {
     const country = getCountry(room.gameState.continent);
     room.gameState.currentCountry = country;
     room.gameState.finished = false;
-    room.gameState.winnersThisRound = [];
-    room.players.forEach(p => {
-      p.guessed = false;
-      p.attempts = 0;
-      p.ready = false;
-    });
+    room.gameState.hostOut = false;
+    room.gameState.guestOut = false;
     
     io.to(code).emit("new-round", {
       round: room.gameState.round,
       country: country,
-      players: room.players
+      hostScore: room.gameState.hostScore,
+      guestScore: room.gameState.guestScore
     });
   }
 
-  function checkRoundEnd(room) {
-    const allFinished = room.players.every(p => p.guessed || p.attempts >= 5);
+  function broadcastResult(room, winner) {
+    const isFinal = room.gameState.round >= 5;
     
-    if (allFinished && !room.gameState.finished) {
-      room.gameState.finished = true;
-      io.to(room.id).emit("round-end", {
-        countryName: room.gameState.currentCountry[0],
-        players: room.players
-      });
-      
-      setTimeout(() => {
-        room.gameState.round++;
-        startNewRound(room.id);
-      }, 5000);
+    io.to(room.host).emit("round-result", {
+      winner,
+      isHost: true,
+      countryName: room.gameState.currentCountry[0],
+      hostScore: room.gameState.hostScore,
+      guestScore: room.gameState.guestScore,
+      isFinal
+    });
+    
+    io.to(room.guest).emit("round-result", {
+      winner,
+      isHost: false,
+      countryName: room.gameState.currentCountry[0],
+      hostScore: room.gameState.hostScore,
+      guestScore: room.gameState.guestScore,
+      isFinal
+    });
+    
+    if (!isFinal) {
+      room.gameState.round++;
+      setTimeout(() => startNewRound(currentRoom), 5000);
+    } else {
+      setTimeout(() => endGame(room), 5000);
     }
   }
 
-  function endGame(room, reason = null) {
-    const sorted = [...room.players].sort((a, b) => b.score - a.score);
-    io.to(room.id).emit("game-over", {
-      players: sorted,
-      winner: sorted[0],
-      reason: reason
+  function endGame(room) {
+    let gameWinner;
+    if (room.gameState.hostScore > room.gameState.guestScore) gameWinner = "host";
+    else if (room.gameState.hostScore < room.gameState.guestScore) gameWinner = "guest";
+    else gameWinner = "draw";
+    
+    io.to(room.host).emit("game-over", {
+      winner: gameWinner,
+      isHost: true,
+      hostScore: room.gameState.hostScore,
+      guestScore: room.gameState.guestScore
+    });
+    
+    io.to(room.guest).emit("game-over", {
+      winner: gameWinner,
+      isHost: false,
+      hostScore: room.gameState.hostScore,
+      guestScore: room.gameState.guestScore
     });
   }
 });
