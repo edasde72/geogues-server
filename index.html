@@ -2,615 +2,370 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoGuessr - Poznej zemi podle mapy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>GeoGuessr Multiplayer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
+        #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        #map { flex: 1; background: #242424; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 300px; position: relative; z-index: 1; }
+        #map-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 50px; font-size: 18px; z-index: 1000; display: flex; align-items: center; gap: 15px; }
+        .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
+        .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 60vh; overflow-y: auto; }
+        #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; max-height: none; }
+        h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: #666; font-size: 18px; margin-bottom: 20px; }
         
-        body { 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            background: #0f172a;
-            color: #e2e8f0;
-            line-height: 1.6;
+        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; max-width: 800px; margin: 0 auto; }
+        @media (min-width: 768px) {
+            .menu-grid { grid-template-columns: 1fr 1fr; }
         }
         
-        /* Full width layout */
-        .section {
-            width: 100%;
-            padding: 60px 20px;
-        }
+        .menu-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: left; }
+        .menu-section h2 { font-size: 20px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .menu-section h2 span { font-size: 24px; }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .how-to-play { background: #f8f9ff; border-left: 4px solid #667eea; }
+        .how-to-play ul { list-style: none; padding: 0; color: #555; font-size: 15px; line-height: 1.6; }
+        .how-to-play li { margin-bottom: 10px; padding-left: 20px; position: relative; }
+        .how-to-play li:before { content: "→"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
+        .how-to-play strong { color: #667eea; }
         
-        /* Hero sekce */
-        .hero {
-            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-            color: white;
-            text-align: center;
-            padding: 100px 20px;
-        }
+        .highscore-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .highscore-section h2 { color: white; }
+        .highscore-list { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px; max-height: 200px; overflow-y: auto; }
+        .highscore-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 15px; }
+        .highscore-item:last-child { border-bottom: none; }
+        .highscore-item .rank { font-weight: bold; margin-right: 10px; }
+        .highscore-item .name { flex: 1; }
+        .highscore-item .score { font-weight: bold; }
+        .highscore-item .date { font-size: 12px; opacity: 0.8; margin-left: 10px; }
+        .no-scores { text-align: center; opacity: 0.8; font-style: italic; padding: 20px; }
+        .clear-scores { margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; width: 100%; }
         
-        .hero h1 {
-            font-size: clamp(40px, 8vw, 72px);
-            margin-bottom: 20px;
-            background: linear-gradient(to right, #818cf8, #c084fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
-        }
+        .menu { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+        .menu-btn { padding: 18px; font-size: 18px; border: none; border-radius: 12px; color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; font-weight: 600; }
+        .menu-btn:active { transform: scale(0.98); }
+        .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .menu-btn.create { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .menu-btn.join { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .menu-btn.start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; animation: pulse 2s infinite; }
+        .menu-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         
-        .hero p {
-            font-size: clamp(18px, 3vw, 24px);
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 0 auto 40px;
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         
-        /* Vysvětlení hry - dlouhé */
-        .how-to-play {
-            background: #1e293b;
-        }
+        .mp-section { margin-top: 10px; padding-top: 15px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 10px; }
+        .select-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .continent-select, .player-count-select { padding: 12px; border-radius: 10px; border: 2px solid #667eea; font-size: 16px; flex: 1; background: white; }
         
-        .section-title {
-            text-align: center;
-            margin-bottom: 50px;
-        }
+        .lobby-info { background: #667eea; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .lobby-info.waiting { background: #f59e0b; color: #000; }
+        .lobby-info.ready { background: #10b981; }
+        .code-display { font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: #f0f0f0; border-radius: 12px; margin: 10px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; font-family: monospace; }
+        .player-list { background: #f8f9ff; border-radius: 12px; padding: 12px; margin: 10px 0; max-height: 150px; overflow-y: auto; }
+        .player-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #e0e0e0; font-size: 15px; }
+        .player-item:last-child { border-bottom: none; }
+        .player-item.you { background: rgba(102, 126, 234, 0.1); border-radius: 6px; }
+        .host-badge { background: #e74c3c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 5px; }
         
-        .section-title h2 {
-            font-size: 36px;
-            color: #818cf8;
-            margin-bottom: 10px;
-        }
+        .chat-box { background: #f5f5f5; border-radius: 12px; padding: 15px; margin: 10px 0; max-height: 180px; display: flex; flex-direction: column; border: 1px solid #e0e0e0; }
+        .chat-messages { flex: 1; overflow-y: auto; max-height: 130px; margin-bottom: 10px; text-align: left; font-size: 14px; background: white; padding: 10px; border-radius: 8px; }
+        .chat-message { padding: 5px 0; border-bottom: 1px solid #eee; }
+        .chat-message:last-child { border-bottom: none; }
+        .chat-message b { color: #667eea; }
+        .chat-message.system { color: #666; font-style: italic; font-size: 13px; }
+        .chat-input { display: flex; gap: 8px; }
+        .chat-input input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; font-size: 14px; }
+        .chat-input button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
         
-        .section-title p {
-            color: #64748b;
-            font-size: 18px;
-        }
+        .multiplayer-scoreboard { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .player-card { background: white; border-radius: 10px; padding: 8px 12px; min-width: 90px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid transparent; font-size: 14px; }
+        .player-card.active { border-color: #667eea; background: #f8f9ff; }
+        .player-card.out { opacity: 0.5; background: #fee; }
+        .player-card .name { font-weight: 600; margin-bottom: 2px; }
+        .player-card .score { font-size: 18px; font-weight: bold; color: #667eea; }
         
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
+        .round-badge-container { margin-bottom: 15px; }
+        .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
+        .timer-badge { background: #e74c3c; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 24px; display: inline-block; font-family: monospace; }
         
-        .step-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 30px;
-            position: relative;
-            overflow: hidden;
-        }
+        .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
+        .input-group { display: flex; gap: 10px; position: relative; }
+        input[type="text"] { flex: 1; padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 16px; outline: none; }
+        input[type="text"]:focus { border-color: #667eea; }
+        input.shake { animation: shake 0.5s; border-color: #ef4444; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        button:not(.menu-btn):not(.small) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; }
+        button.small { padding: 10px 20px; font-size: 14px; background: #999; color: white; border: none; border-radius: 20px; cursor: pointer; }
         
-        .step-card::before {
-            content: attr(data-step);
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 48px;
-            font-weight: 800;
-            color: rgba(129, 140, 248, 0.2);
-        }
+        .autocomplete-items { position: absolute; border: 1px solid #ddd; z-index: 99; top: 100%; left: 0; right: 0; margin-top: 5px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; display: none; background: white; text-align: left; }
+        .autocomplete-items.active { display: block; }
+        .autocomplete-item { padding: 12px 20px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
+        .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
+        .autocomplete-item strong { font-weight: bold; }
         
-        .step-card h3 {
-            color: #818cf8;
-            font-size: 22px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .step-card p {
-            color: #94a3b8;
-            line-height: 1.8;
-        }
-        
-        /* Detailní pravidla */
-        .rules {
-            background: #0f172a;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .rule-box {
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border-left: 4px solid #818cf8;
-        }
-        
-        .rule-box h3 {
-            color: #fff;
-            margin-bottom: 10px;
-            font-size: 20px;
-        }
-        
-        .rule-box ul {
-            margin-left: 20px;
-            color: #94a3b8;
-        }
-        
-        .rule-box li {
-            margin: 8px 0;
-        }
-        
-        /* Herní sekce - full width */
-        #game-section {
-            background: linear-gradient(to bottom, #1e293b, #0f172a);
-            min-height: 100vh;
-            padding: 40px 20px;
-        }
-        
-        #game-container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        /* Menu tlačítka - full width */
-        .menu-panel {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 30px;
-        }
-        
-        .game-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .game-header h2 {
-            font-size: 32px;
-            color: #818cf8;
-            margin-bottom: 10px;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 24px;
-            margin-bottom: 15px;
-            border: none;
-            border-radius: 12px;
-            font-size: 20px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-        }
-        
-        .btn-single {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
-        
-        .btn-multi {
-            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-        }
-        
-        .btn-join {
-            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-        }
-        
-        .btn-start {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            font-size: 24px;
-            padding: 30px;
-            animation: pulse-green 2s infinite;
-        }
-        
-        @keyframes pulse-green {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-            50% { box-shadow: 0 0 20px 10px rgba(16, 185, 129, 0); }
-        }
-        
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.2);
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        /* Herní plocha */
-        #game-panel {
-            display: none;
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        #map {
-            height: 500px;
-            background: #242424;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .controls {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 25px;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        input[type="text"] {
-            flex: 1;
-            padding: 18px 25px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 18px;
-            outline: none;
-        }
-        
-        input[type="text"]:focus {
-            border-color: #818cf8;
-        }
-        
-        button.action-btn {
-            padding: 18px 40px;
-            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-            border: none;
-            border-radius: 50px;
-            color: white;
-            font-weight: 700;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        
-        .stats-bar {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .stat-item {
-            text-align: center;
-            background: rgba(0,0,0,0.3);
-            padding: 15px 30px;
-            border-radius: 12px;
-            min-width: 120px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #64748b;
-            letter-spacing: 1px;
-        }
-        
-        .stat-value {
-            font-size: 32px;
-            font-weight: 800;
-            color: #818cf8;
-        }
-        
-        /* Lobby */
-        .lobby-panel {
-            background: rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 40px;
-            display: none;
-        }
-        
-        .code-display {
-            font-size: 48px;
-            text-align: center;
-            letter-spacing: 8px;
-            color: #818cf8;
-            font-weight: 800;
-            background: rgba(0,0,0,0.3);
-            padding: 30px;
-            border-radius: 15px;
-            margin: 30px 0;
-            border: 2px dashed #818cf8;
-            cursor: pointer;
-            font-family: monospace;
-        }
-        
-        .player-list {
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            min-height: 150px;
-        }
-        
-        .player-item {
-            padding: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .host-badge {
-            background: #ec4899;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        
-        /* Autocomplete */
-        .autocomplete-items {
-            position: absolute;
-            width: calc(100% - 140px);
-            background: rgba(30, 41, 59, 0.98);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 15px;
-            max-height: 250px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-            margin-top: 5px;
-        }
-        
-        .autocomplete-item {
-            padding: 15px 25px;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .autocomplete-item:hover {
-            background: rgba(129, 140, 248, 0.2);
-        }
-        
-        /* Game Over */
-        #game-over {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .modal-content {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 24px;
-            padding: 50px;
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-        }
-        
-        .modal-content h2 {
-            font-size: 36px;
-            margin-bottom: 30px;
-            color: #fff;
-        }
-        
-        .score-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px 20px;
-            background: rgba(255,255,255,0.05);
-            margin: 10px 0;
-            border-radius: 10px;
-            font-size: 18px;
-        }
-        
-        .score-row.winner {
-            background: rgba(16, 185, 129, 0.2);
-            border: 2px solid #10b981;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .section { padding: 40px 20px; }
-            .steps { grid-template-columns: 1fr; }
-            .menu-panel { padding: 25px; }
-            .btn { font-size: 18px; padding: 20px; }
-            #map { height: 400px; }
-            .code-display { font-size: 32px; letter-spacing: 4px; padding: 20px; }
-        }
-        
+        #hint { font-weight: 600; color: #667eea; margin-top: 15px; font-size: 18px; min-height: 50px; line-height: 1.4; }
+        .success { color: #10b981; font-size: 20px; font-weight: bold; }
+        .fail { color: #ef4444; } 
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; z-index: 10000; pointer-events: none; font-size: 16px; }
+        .toast.show { opacity: 1; }
         .hidden { display: none !important; }
         
-        /* Spinner */
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: #818cf8;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+        #game-over { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; color: white; padding: 20px; }
+        #game-over.show { display: flex; }
+        .game-over-box { background: white; color: #333; padding: 30px; border-radius: 20px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .game-over-box .menu-btn { margin: 5px 0; }
+        .winners-title { font-size: 28px; margin-bottom: 10px; font-weight: bold; color: #333; }
+        .winners-subtitle { font-size: 20px; margin-bottom: 15px; color: #667eea; font-weight: 600; }
+        .scores-list { text-align: left; margin: 15px 0; max-height: 250px; overflow-y: auto; }
+        .score-item { padding: 10px; margin: 5px 0; background: #f8f9ff; border-radius: 8px; display: flex; justify-content: space-between; font-size: 16px; align-items: center; }
+        .score-item.winner { background: #d4edda; border: 2px solid #10b981; font-weight: bold; }
+        .score-item.you { background: #e7e3f8; border: 2px solid #667eea; }
+        .score-rank { font-size: 20px; font-weight: bold; color: #667eea; margin-right: 10px; }
+        .score-name { flex: 1; text-align: left; }
+        .score-points { font-weight: bold; font-size: 18px; color: #333; }
+        .rematch-status { font-size: 16px; color: #666; margin: 10px 0; font-weight: 600; }
+        .rematch-status.ready { color: #10b981; }
+
+        /* === MOBILNÍ OPTIMALIZACE === */
+        @media (max-width: 768px) {
+            #game-container { padding: 10px; gap: 10px; }
+            
+            /* Menu - větší tlačítka pro prsty */
+            .menu-btn { 
+                padding: 22px 20px; 
+                font-size: 20px; 
+                margin-bottom: 8px;
+                min-height: 56px; /* Apple HIG */
+            }
+            
+            /* Menší padding v menu sekcích */
+            .menu-section { padding: 15px; margin-bottom: 10px; }
+            .menu-section h2 { font-size: 18px; margin-bottom: 10px; }
+            
+            /* Zmenšit text v návodu na mobilu */
+            .how-to-play ul { font-size: 14px; line-height: 1.5; }
+            .how-to-play li { margin-bottom: 8px; padding-left: 15px; }
+            
+            /* Highscore kompaktnější */
+            .highscore-item { padding: 6px; font-size: 14px; }
+            
+            /* Selecty větší pro touch */
+            .continent-select, .player-count-select {
+                padding: 15px;
+                font-size: 16px; /* Zabrání zoomu na iOS */
+                min-height: 48px;
+            }
+            
+            /* Hra - mapa větší na mobilu */
+            #map { 
+                min-height: 45vh; 
+                border-radius: 15px;
+            }
+            
+            /* Ovládací panel */
+            .controls { 
+                padding: 15px; 
+                border-radius: 15px;
+                max-height: 45vh;
+            }
+            
+            /* Inputy větší pro mobil */
+            input[type="text"] { 
+                padding: 18px 25px; 
+                font-size: 18px; /* Zabrání iOS zoomu */
+                min-height: 48px;
+            }
+            
+            /* Tlačítko Hádat větší */
+            button:not(.menu-btn):not(.small) {
+                padding: 18px 25px;
+                font-size: 18px;
+                min-width: 100px;
+            }
+            
+            /* Autocomplete pro prsty */
+            .autocomplete-item { 
+                padding: 18px 25px; 
+                font-size: 18px; 
+                min-height: 48px;
+                display: flex;
+                align-items: center;
+            }
+            
+            /* Skóre vedle sebe na mobilu */
+            #single-stats div {
+                display: flex;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .timer-badge { 
+                font-size: 32px; 
+                padding: 10px 20px;
+            }
+            
+            /* Lobby na mobilu */
+            #host-panel, #join-panel {
+                padding: 0 5px;
+            }
+            
+            .code-display { 
+                font-size: 28px; 
+                letter-spacing: 4px; 
+                padding: 15px;
+            }
+            
+            /* Chat menší v lobby */
+            .chat-box { 
+                max-height: 150px; 
+                margin: 10px 0;
+            }
+            .chat-messages { max-height: 100px; }
+            
+            /* Game Over přes celou obrazovku na mobilu */
+            .game-over-box {
+                padding: 25px 20px;
+                margin: 10px;
+                max-height: 95vh;
+            }
+            
+            .winners-title { font-size: 24px; }
+            .winners-subtitle { font-size: 18px; }
+            
+            /* Tlačítka v game over větší */
+            .game-over-box .menu-btn {
+                padding: 20px;
+                font-size: 20px;
+            }
+            
+            /* Toast nižší na mobilu (neblokuje horní lištu) */
+            .toast {
+                bottom: 80px;
+                font-size: 15px;
+                padding: 12px 25px;
+                max-width: 90%;
+                text-align: center;
+            }
+            
+            /* Scoreboard kompaktnější */
+            .player-card {
+                padding: 6px 10px;
+                min-width: 75px;
+            }
+            .player-card .name { font-size: 13px; }
+            .player-card .score { font-size: 16px; }
+            
+            /* Hint menší */
+            #hint { 
+                font-size: 16px; 
+                margin-top: 10px;
+                min-height: 40px;
+            }
+            
+            /* Tlačítko zpět větší */
+            button.small {
+                padding: 15px 20px;
+                font-size: 16px;
+                margin-top: 15px;
+            }
         }
         
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        #map-loader {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            padding: 30px;
-            border-radius: 20px;
-            text-align: center;
-            z-index: 1000;
+        /* Extra malé mobily */
+        @media (max-width: 380px) {
+            h1 { font-size: 24px; }
+            .subtitle { font-size: 16px; }
+            
+            .menu-btn { 
+                padding: 18px 15px; 
+                font-size: 18px; 
+            }
+            
+            .code-display { font-size: 24px; letter-spacing: 2px; }
+            
+            .timer-badge { font-size: 28px; }
         }
         
-        /* Highscore */
-        .highscore-box {
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 30px;
+        /* Landscape orientace na mobilu */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #map { min-height: 60vh; }
+            .controls { max-height: 35vh; }
+            .menu-grid { display: flex; flex-direction: row; gap: 10px; }
+            .menu-section { flex: 1; font-size: 14px; }
         }
         
-        .highscore-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+        /* iPhone X+ notch safe area */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            @media (max-width: 768px) {
+                #game-container { 
+                    padding-bottom: calc(10px + env(safe-area-inset-bottom)); 
+                }
+                .toast {
+                    bottom: calc(20px + env(safe-area-inset-bottom));
+                }
+            }
         }
     </style>
 </head>
 <body>
 
-<!-- HERO SEKCE -->
-<section class="hero">
-    <div class="container">
+<div id="toast" class="toast"></div>
+
+<div id="game-over">
+    <div class="game-over-box">
+        <h2 class="winners-title" id="winners-title">Konec hry!</h2>
+        <div class="winners-subtitle" id="winners-subtitle"></div>
+        <div class="scores-list" id="final-scores"></div>
+        <div id="rematch-status" class="rematch-status hidden"></div>
+        <button class="menu-btn create" onclick="game.rematch()" id="rematch-btn" style="margin-top: 10px;">🔄 Nová hra</button>
+        <button class="small" onclick="game.backToMenu()" style="margin-top: 15px;">🏠 Hlavní menu</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <!-- HLAVNÍ MENU S TUTORIÁLEM A HIGH SCORE -->
+    <div id="menu" class="controls">
         <h1>🌍 GeoGuessr</h1>
-        <p>Zapoj své zeměpisné znalosti a poznej zemi pouze podle satelitní mapy. Hraj sólo proti času nebo vyzvi své přátele v multiplayeru!</p>
-    </div>
-</section>
-
-<!-- JAK HRÁT - Detailní -->
-<section class="how-to-play section">
-    <div class="container">
-        <div class="section-title">
-            <h2>Jak se hraje?</h2>
-            <p>Kompletní průvodce hrou krok za krokem</p>
-        </div>
+        <p class="subtitle">Poznáš zemi podle mapy?</p>
         
-        <div class="steps">
-            <div class="step-card" data-step="01">
-                <h3>🎯 Zahaj hru</h3>
-                <p>Vyber si mezi Single Player módem, kde máš 5 minut na uhodnutí co nejvíce zemí, nebo vytvoř multiplayer místnost a pozvi přátele pomocí unikátního kódu. Hra je zcela zdarma a nevyžaduje registraci.</p>
+        <div class="menu-grid">
+            <!-- Jak hrát -->
+            <div class="menu-section how-to-play">
+                <h2><span>📖</span> Jak hrát?</h2>
+                <ul>
+                    <li><strong>Single Player:</strong> Máš 5 minut na uhodnutí co nejvíce zemí. Za každou zemi získáš body podle rychlosti (50 bodů za 1. pokus).</li>
+                    <li><strong>Multiplayer:</strong> Hraje 2-8 hráčů. Kdo první napíše správně zemi, vyhrává kolo a získává bod.</li>
+                    <li><strong>Nápověda:</strong> S každým špatným pokusem se mapa oddálí a ukáže větší oblast.</li>
+                    <li><strong>Tipy:</strong> Piš s diakritikou (např. "Česko") nebo anglicky ("Czechia").</li>
+                    <li><strong>Výhra:</strong> V multiplayeru vyhrává hráč s nejvíce body po 5 kolech.</li>
+                </ul>
             </div>
             
-            <div class="step-card" data-step="02">
-                <h3>🗺️ Prozkoumej mapu</h3>
-                <p>Na obrazovce se zobrazí satelitní snímek nějakého místa na Zemi. Podle krajiny, měst, silnic nebo přírodních útvarů se pokus identifikovat, ve které zemi se nacházíš. Čím víc přiblížení, tím těžší hádanka!</p>
-            </div>
-            
-            <div class="step-card" data-step="03">
-                <h3>⌨️ Napiš odpověď</h3>
-                <p>Do textového pole napiš název země. Můžeš psát česky (např. "Česká republika", "Německo") nebo anglicky ("Czechia", "Germany"). Systém akceptuje obě varianty i zkrácené názvy. Máš 5 pokusů na každou zemi.</p>
-            </div>
-            
-            <div class="step-card" data-step="04">
-                <h3>⭐ Sbírej body</h3>
-                <p>Za správnou odpověď získáváš body - čím rychleji odpovíš, tím více bodů dostaneš (max 50 bodů za první pokus). V multiplayeru vyhrává kolo ten, kdo odpoví správně jako první. Sbírej body a staň se šampionem!</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- PRAVIDLA A TIPY -->
-<section class="rules section">
-    <div class="container">
-        <div class="section-title">
-            <h2>Pravidla a tipy</h2>
-            <p>Vše co potřebuješ vědět pro vítězství</p>
-        </div>
-        
-        <div class="rule-box">
-            <h3>🎮 Herní módy</h3>
-            <ul>
-                <li><strong>Single Player:</strong> 5 minut času, neomezený počet zemí, cílem je nasbírat co nejvíce bodů. Po skončení se uloží tvoje skóre do žebříčku.</li>
-                <li><strong>Multiplayer:</strong> 2-8 hráčů, 5 kol, každé kolo náhodná země. Kdo první správně odpoví, dostane bod. Pokud nikdo neuhodne do 5 pokusů, kolo se přeskočí.</li>
-            </ul>
-        </div>
-        
-        <div class="rule-box">
-            <h3>💡 Strategie</h3>
-            <ul>
-                <li>Sleduj směr jízdy aut - v některých zemích jezdí vlevo, v jiných vpravo.</li>
-                <li>Všímej si jazyka na dopravních značkách nebo budovách.</li>
-                <li>Krajina ti hodně napoví - pouště, hory, pláže, lesy.</li>
-                <li>Pokud si nejsi jistý, zkus obecný tip jako "Brazílie" nebo "Rusko" podle kontinentu.</li>
-            </ul>
-        </div>
-        
-        <div class="rule-box">
-            <h3>📝 Uznávané odpovědi</h3>
-            <ul>
-                <li>Akceptujeme české i anglické názvy ("Francie" i "France")</li>
-                <li>Zkrácené názvy jsou OK ("USA" místo "Spojené státy americké")</li>
-                <li>Varianty s "Republika" nebo bez ("Česko" = "Česká republika")</li>
-                <li>Hlavní města NEakceptujeme - musíš napsat zemi!</li>
-            </ul>
-        </div>
-    </div>
-</section>
-
-<!-- HERNI SEKCE -->
-<section class="section" id="game-section">
-    <div class="container">
-        <div class="section-title">
-            <h2>Začni hrát</h2>
-            <p>Vyber si herní mód níže</p>
-        </div>
-        
-        <div id="game-container">
-            <!-- HLAVNI MENU -->
-            <div id="main-menu" class="menu-panel">
-                <div class="button-group">
-                    <button class="btn btn-single" onclick="game.startSingle()">
-                        👤 Single Player - 5 minut
-                    </button>
-                    
-                    <div style="margin: 30px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 30px;">
-                        <button class="btn btn-multi" onclick="game.showCreate()">
-                            🎮 Vytvořit multiplayer (Host)
-                        </button>
-                        <button class="btn btn-join" onclick="game.showJoin()">
-                            🔗 Připojit se k existující hře
-                        </button>
-                    </div>
+            <!-- Nejlepší skóre -->
+            <div class="menu-section highscore-section">
+                <h2><span>🏆</span> Nejlepší skóre</h2>
+                <div class="highscore-list" id="highscore-list">
+                    <div class="no-scores">Zatím žádné skóre. Zahraj si singleplayer!</div>
                 </div>
-                
-                <div class="highscore-box">
-                    <h3 style="margin-bottom: 15px; color: #818cf8;">🏆 Nejlepší skóre</h3>
-                    <div id="highscore-list">
-                        <div style="color: #64748b; text-align: center; padding: 20px;">
-                            Zatím žádné skóre. Zahraj si singleplayer a ukaž co v tobě je!
-                        </div>
-                    </div>
-                </div>
+                <button class="clear-scores" onclick="game.clearHighScores()" id="clear-scores-btn" style="display:none;">Smazat historii</button>
             </div>
+        </div>
+        
+        <div class="menu" style="margin-top: 20px;">
+            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player (5 min)</button>
             
-            <!-- CREATE LOBBY -->
-            <div id="create-lobby" class="lobby-panel" style="display: none;">
-                <h2 style="text-align: center; margin-bottom: 30px;">Vytvořit novou hru</h2>
+            <div class="mp-section">
+                <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;">👥 Multiplayer</p>
                 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px; color: #94a3b8;">Výběr kontinentu:</label>
-                    <select id="continent-select" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 16px;">
+                <div class="select-group">
+                    <select id="continent-select" class="continent-select">
                         <option value="world">🌍 Celý svět (194 zemí)</option>
                         <option value="europe">🇪🇺 Evropa (46 zemí)</option>
                         <option value="asia">🌏 Asie (49 zemí)</option>
@@ -618,432 +373,142 @@
                         <option value="africa">🌍 Afrika (54 zemí)</option>
                         <option value="oceania">🌏 Oceánie (14 zemí)</option>
                     </select>
-                </div>
-                
-                <div style="margin-bottom: 30px;">
-                    <label style="display: block; margin-bottom: 10px; color: #94a3b8;">Maximální počet hráčů:</label>
-                    <select id="max-players" style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: white; font-size: 16px;">
+                    <select id="max-players" class="player-count-select">
                         <option value="2">2 hráči</option>
                         <option value="3">3 hráči</option>
                         <option value="4" selected>4 hráči</option>
-                        <option value="5">5 hráčů</option>
                         <option value="6">6 hráčů</option>
-                        <option value="7">7 hráčů</option>
                         <option value="8">8 hráčů</option>
                     </select>
                 </div>
                 
-                <button class="btn btn-multi" onclick="game.createRoom()" style="margin-bottom: 15px;">
-                    Vytvořit místnost
-                </button>
-                <button class="btn btn-secondary" onclick="game.showMain()">
-                    Zpět do menu
-                </button>
+                <button class="menu-btn create" onclick="game.startHost()">🎮 Vytvořit hru</button>
+                <button class="menu-btn join" onclick="game.showJoin()">🔗 Připojit se ke hře</button>
+            </div>
+        </div>
+        
+        <!-- HOST LOBBY -->
+        <div id="host-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
+            <div id="host-lobby-info" class="lobby-info waiting">
+                Čekání na hráče... (<span id="player-count">1</span>/<span id="max-count">4</span>)
             </div>
             
-            <!-- HOST LOBBY -->
-            <div id="host-lobby" class="lobby-panel" style="display: none;">
-                <div style="text-align: center;">
-                    <div style="color: #94a3b8; margin-bottom: 10px;">Kód pro připojení:</div>
-                    <div class="code-display" id="room-code" onclick="game.copyCode()">----</div>
-                    <div style="color: #64748b; font-size: 14px;">Klikni pro zkopírování</div>
+            <div class="code-display" id="room-code" onclick="game.copyLink()">----</div>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Klikni pro zkopírování odkazu</p>
+            
+            <div class="player-list" id="lobby-player-list"></div>
+            
+            <div class="chat-box">
+                <div class="chat-messages" id="host-chat"></div>
+                <div class="chat-input">
+                    <input type="text" id="host-chat-input" placeholder="Napiš zprávu..." maxlength="200">
+                    <button onclick="game.sendChat('host')">Odeslat</button>
                 </div>
-                
-                <div style="margin: 30px 0;">
-                    <div style="color: #94a3b8; margin-bottom: 10px;">Hráči v místnosti:</div>
-                    <div class="player-list" id="host-player-list">
-                        <div class="player-item">
-                            <span>Host (Ty)</span>
-                            <span class="host-badge">HOST</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                    <div id="host-chat" style="height: 120px; overflow-y: auto; margin-bottom: 15px; font-size: 14px; color: #cbd5e1;"></div>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="host-chat-input" placeholder="Napiš zprávu..." style="flex: 1; padding: 12px 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" onkeypress="if(event.key==='Enter') game.sendChat('host')">
-                        <button onclick="game.sendChat('host')" style="padding: 12px 25px; background: #818cf8; border: none; border-radius: 25px; color: white; font-weight: 600; cursor: pointer;">Poslat</button>
-                    </div>
-                </div>
-                
-                <button class="btn btn-start" id="start-game-btn" onclick="game.startGame()" style="display: none; margin-bottom: 15px;">
-                    ▶️ Spustit hru
-                </button>
-                <button class="btn btn-secondary" onclick="game.showMain()">
-                    Zrušit hru
-                </button>
             </div>
             
-            <!-- JOIN LOBBY -->
-            <div id="join-lobby" class="lobby-panel" style="display: none;">
-                <h2 style="text-align: center; margin-bottom: 30px;">Připojit se ke hře</h2>
-                
-                <input type="text" id="join-code" placeholder="Zadej kód místnosti" style="width: 100%; padding: 25px; font-size: 28px; text-align: center; letter-spacing: 3px; background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; margin-bottom: 20px; text-transform: uppercase;">
-                
-                <input type="text" id="join-name" placeholder="Tvoje přezdívka" style="width: 100%; padding: 20px; font-size: 18px; background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; margin-bottom: 30px;">
-                
-                <button class="btn btn-join" onclick="game.joinRoom()" style="margin-bottom: 15px;">
-                    Připojit se do hry
-                </button>
-                <button class="btn btn-secondary" onclick="game.showMain()">
-                    Zpět
-                </button>
-                
-                <p id="join-error" style="color: #f43f5e; text-align: center; margin-top: 20px;"></p>
+            <button id="start-game-btn" class="menu-btn start-btn hidden" onclick="game.startGameFromLobby()">▶️ SPUSTIT HRU</button>
+            <button onclick="game.showMain()" class="small" style="margin-top: 15px; width: 100%;">Zrušit</button>
+        </div>
+        
+        <!-- JOIN LOBBY -->
+        <div id="join-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
+            <div id="join-form">
+                <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;">Zadej kód a jméno:</p>
+                <input type="text" id="join-code" placeholder="KÓD MÍSTNOSTI" style="width: 100%; margin-bottom: 10px; padding: 15px; text-align: center; font-size: 20px; letter-spacing: 2px; font-weight: bold; text-transform: uppercase;" maxlength="10">
+                <input type="text" id="join-nickname" placeholder="Tvoje jméno (max 20 znaků)" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 16px;" maxlength="20">
+                <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 10px; padding: 15px;">Připojit se</button>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
+                <p id="join-error" style="color: #e74c3c; margin-top: 10px; min-height: 20px; font-size: 14px;"></p>
             </div>
             
-            <!-- GUEST WAITING -->
-            <div id="guest-wait" class="lobby-panel" style="display: none; text-align: center;">
-                <div class="spinner" style="margin-bottom: 20px;"></div>
-                <h2>Připojeno! Čekání na hosta...</h2>
-                <p style="color: #94a3b8; margin: 20px 0;">Hra začne, jakmile host spustí kolo.</p>
+            <div id="guest-lobby" class="hidden">
+                <div class="lobby-info waiting">
+                    Čekání na hosta... (<span id="guest-player-count">1</span>/<span id="guest-max-count">4</span>)
+                </div>
                 
-                <div class="player-list" id="guest-player-list" style="margin: 30px 0; text-align: left;"></div>
+                <div class="player-list" id="guest-lobby-player-list"></div>
                 
-                <button class="btn btn-secondary" onclick="game.showMain()">
-                    Odpojit se
-                </button>
-            </div>
-            
-            <!-- GAME PANEL -->
-            <div id="game-panel">
-                <div style="position: relative;">
-                    <div id="map"></div>
-                    <div id="map-loader">
-                        <div class="spinner"></div>
-                        <div style="color: white; margin-top: 10px;">Načítání mapy...</div>
+                <div class="chat-box">
+                    <div class="chat-messages" id="guest-chat"></div>
+                    <div class="chat-input">
+                        <input type="text" id="guest-chat-input" placeholder="Napiš zprávu..." maxlength="200" disabled>
+                        <button onclick="game.sendChat('guest')" disabled>Chat</button>
                     </div>
                 </div>
                 
-                <div class="controls">
-                    <div class="stats-bar" id="game-stats">
-                        <div class="stat-item" id="stat-timer" style="display: none;">
-                            <div class="stat-label">Zbývající čas</div>
-                            <div class="stat-value" id="timer" style="color: #f43f5e;">05:00</div>
-                        </div>
-                        <div class="stat-item" id="stat-round" style="display: none;">
-                            <div class="stat-label">Kolo</div>
-                            <div class="stat-value" id="round">1/5</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Skóre</div>
-                            <div class="stat-value" id="score">0</div>
-                        </div>
-                        <div class="stat-item" id="stat-countries" style="display: none;">
-                            <div class="stat-label">Uhodnuté země</div>
-                            <div class="stat-value" id="countries-count">0</div>
-                        </div>
-                    </div>
-                    
-                    <div style="position: relative;">
-                        <div class="input-group">
-                            <input type="text" id="guessInput" placeholder="Napiš název země..." autocomplete="off" disabled>
-                            <button class="action-btn" id="guessBtn" onclick="game.makeGuess()" disabled>Hádat</button>
-                        </div>
-                        <div id="autocomplete-list" class="autocomplete-items"></div>
-                    </div>
-                    
-                    <div id="hint" style="text-align: center; margin-top: 15px; font-size: 18px; min-height: 30px; color: #94a3b8;"></div>
-                    
-                    <button class="btn btn-secondary" onclick="game.backToMenu()" style="margin-top: 20px;">
-                        ↩ Ukončit hru a vrátit se do menu
-                    </button>
-                </div>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Odpojit se</button>
             </div>
         </div>
     </div>
-</section>
 
-<!-- FOOTER -->
-<footer style="background: #020617; padding: 40px 20px; text-align: center; color: #475569; border-top: 1px solid rgba(255,255,255,0.1);">
-    <p style="margin-bottom: 10px;">© 2024 GeoGuessr Czech Edition</p>
-    <p style="font-size: 14px;">Vytvořeno pro všechny milovníky zeměpisu | Používá OpenStreetMap</p>
-</footer>
+    <!-- GAME PANEL -->
+    <div id="game-panel" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="map-loader" class="hidden"><div class="spinner"></div><span>Načítání...</span></div>
+        </div>
+        <div class="controls" style="max-height: 50vh;">
+            <div id="mp-scoreboard" class="multiplayer-scoreboard hidden"></div>
+            
+            <div id="single-stats" class="hidden" style="margin-bottom: 10px;">
+                <div class="round-badge-container">
+                    <div class="timer-badge" id="timer">05:00</div>
+                </div>
+                <div style="font-size: 16px; font-weight: bold; color: #667eea; margin-top: 5px;">
+                    🏆 <span id="score">0</span> bodů | 🎯 <span id="streak">0</span> série | 🌍 <span id="countries-count">0</span> zemí
+                </div>
+            </div>
+            
+            <div id="round-display" class="round-badge-container hidden">
+                <div class="round-badge">Kolo <span id="round">1</span>/<span id="total-rounds">5</span></div>
+            </div>
 
-<!-- GAME OVER MODAL -->
-<div id="game-over" onclick="if(event.target === this) document.getElementById('game-over').style.display='none'">
-    <div class="modal-content">
-        <h2 id="go-title">Konec hry!</h2>
-        <div id="go-results" style="margin: 30px 0;"></div>
-        <button class="btn btn-single" onclick="game.newGame()" style="margin-bottom: 15px;">
-            Hrát znovu
-        </button>
-        <button class="btn btn-secondary" onclick="game.showMain(); document.getElementById('game-over').style.display='none'">
-            Hlavní menu
-        </button>
+            <div class="input-wrapper">
+                <div class="input-group">
+                    <input type="text" id="guessInput" placeholder="Napiš zemi..." autocomplete="off" disabled>
+                    <button onclick="game.makeGuess()" id="guessBtn" disabled>Hádat</button>
+                </div>
+                <div id="autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            
+            <p id="hint">Příprava hry...</p>
+            <button onclick="game.backToMenu()" class="small" style="margin-top: 10px;">← Odpojit se</button>
+        </div>
     </div>
 </div>
 
 <script>
-// Kompletní herní logika s všemi 194 zeměmi
 const game = (function() {
     'use strict';
     
-    // Konstanty
-    const HIGHSCORE_KEY = 'geoguessr_scores';
-    const SINGLE_TIME = 300; // 5 minut
+    const HIGHSCORE_KEY = 'geoguessr_highscores';
+    const MAX_HIGHSCORES = 10;
     
-    // Detekce mobilu
-    const isMobile = window.innerWidth <= 768;
+    // Detekce mobilního zařízení pro speciální chování
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
     
-    // Herní stav
-    const state = {
-        mode: null, // 'single', 'host', 'guest'
-        roomCode: null,
-        isHost: false,
-        players: [],
-        currentCountry: null,
-        score: 0,
-        countriesGuessed: 0,
-        streak: 0,
-        timeLeft: SINGLE_TIME,
-        timerInterval: null,
-        round: 1,
-        totalRounds: 5,
-        attempts: 0,
-        socket: null,
-        map: null,
-        gameActive: false
-    };
-    
-    // Kompletní databáze 194 zemí
-    const countries = [
-        // Evropa (46)
-        ["Albánie",41.32,19.81,["albania"]],
-        ["Andora",42.50,1.52,["andorra"]],
-        ["Rakousko",48.20,16.37,["austria"]],
-        ["Bělorusko",53.90,27.56,["belarus"]],
-        ["Belgie",50.85,4.35,["belgium"]],
-        ["Bosna a Hercegovina",43.85,18.41,["bosnia","bosna"]],
-        ["Bulharsko",42.69,23.32,["bulgaria"]],
-        ["Chorvatsko",45.81,15.98,["croatia"]],
-        ["Kypr",35.18,33.38,["cyprus"]],
-        ["Česko",50.07,14.43,["czech","cesko","czechia"]],
-        ["Dánsko",55.67,12.56,["denmark"]],
-        ["Estonsko",59.43,24.75,["estonia"]],
-        ["Finsko",60.16,24.93,["finland"]],
-        ["Francie",48.85,2.35,["france"]],
-        ["Německo",52.52,13.40,["germany"]],
-        ["Řecko",37.98,23.72,["greece"]],
-        ["Maďarsko",47.49,19.04,["hungary"]],
-        ["Island",64.14,-21.94,["iceland"]],
-        ["Irsko",53.34,-6.26,["ireland"]],
-        ["Itálie",41.90,12.49,["italy"]],
-        ["Kosovo",42.66,21.16,["kosovo"]],
-        ["Lotyšsko",56.94,24.10,["latvia"]],
-        ["Lichtenštejnsko",47.14,9.52,["liechtenstein"]],
-        ["Litva",54.68,25.27,["lithuania"]],
-        ["Lucembursko",49.61,6.13,["luxembourg"]],
-        ["Malta",35.89,14.50,["malta"]],
-        ["Moldavsko",47.01,28.86,["moldova"]],
-        ["Monako",43.73,7.42,["monaco"]],
-        ["Černá Hora",42.44,19.26,["montenegro"]],
-        ["Nizozemsko",52.36,4.90,["netherlands"]],
-        ["Severní Makedonie",41.99,21.43,["macedonia"]],
-        ["Norsko",59.91,10.75,["norway"]],
-        ["Polsko",52.22,21.01,["poland"]],
-        ["Portugalsko",38.72,-9.13,["portugal"]],
-        ["Rumunsko",44.42,26.10,["romania"]],
-        ["Rusko",55.75,37.61,["russia"]],
-        ["San Marino",43.94,12.46,["san marino"]],
-        ["Srbsko",44.78,20.44,["serbia"]],
-        ["Slovensko",48.14,17.10,["slovakia"]],
-        ["Slovinsko",46.05,14.50,["slovenia"]],
-        ["Španělsko",40.41,-3.70,["spain"]],
-        ["Švédsko",59.32,18.06,["sweden"]],
-        ["Švýcarsko",46.94,7.44,["switzerland"]],
-        ["Ukrajina",50.45,30.52,["ukraine"]],
-        ["Velká Británie",51.50,-0.12,["britain","uk","united kingdom"]],
-        ["Vatikán",41.90,12.45,["vatican"]],
-        
-        // Asie (49)
-        ["Afghánistán",34.52,69.17,["afghanistan"]],
-        ["Arménie",40.17,44.50,["armenia"]],
-        ["Ázerbájdžán",40.40,49.86,["azerbaijan"]],
-        ["Bahrajn",26.22,50.58,["bahrain"]],
-        ["Bangladéš",23.81,90.41,["bangladesh"]],
-        ["Bhútán",27.51,90.43,["bhutan"]],
-        ["Brunej",4.53,114.72,["brunei"]],
-        ["Kambodža",11.55,104.92,["cambodia"]],
-        ["Čína",35.86,104.19,["china"]],
-        ["Georgie",41.71,44.82,["georgia"]],
-        ["Indie",20.59,78.96,["india"]],
-        ["Indonésie",-0.78,113.92,["indonesia"]],
-        ["Irán",32.42,53.68,["iran"]],
-        ["Irák",33.22,43.67,["iraq"]],
-        ["Izrael",31.04,34.85,["israel"]],
-        ["Japonsko",36.20,138.25,["japan"]],
-        ["Jordánsko",30.58,36.23,["jordan"]],
-        ["Kazachstán",48.01,66.92,["kazakhstan"]],
-        ["Kuvajt",29.31,47.48,["kuwait"]],
-        ["Kyrgyzstán",41.20,74.76,["kyrgyzstan"]],
-        ["Laos",19.85,102.49,["laos"]],
-        ["Libanon",33.85,35.86,["lebanon"]],
-        ["Malajsie",4.21,101.97,["malaysia"]],
-        ["Maledivy",3.20,73.22,["maldives"]],
-        ["Mongolsko",46.86,103.84,["mongolia"]],
-        ["Myanmar",21.91,95.95,["myanmar","burma"]],
-        ["Nepál",28.39,84.12,["nepal"]],
-        ["Korea (KLDR)",39.03,125.76,["north korea","kldr"]],
-        ["Omán",21.47,55.97,["oman"]],
-        ["Pákistán",30.37,69.34,["pakistan"]],
-        ["Palestina",31.95,35.23,["palestine"]],
-        ["Filipíny",12.87,121.77,["philippines"]],
-        ["Katar",25.35,51.18,["qatar"]],
-        ["Saúdská Arábie",23.88,45.07,["saudi arabia"]],
-        ["Singapur",1.35,103.81,["singapore"]],
-        ["Korea (Jižní)",35.90,127.76,["south korea","korea"]],
-        ["Srí Lanka",7.87,80.77,["sri lanka"]],
-        ["Sýrie",34.80,38.99,["syria"]],
-        ["Tádžikistán",38.86,71.27,["tajikistan"]],
-        ["Thajsko",15.87,100.99,["thailand"]],
-        ["Východní Timor",-8.87,125.72,["timor","east timor"]],
-        ["Turecko",38.96,35.24,["turkey"]],
-        ["Turkmenistán",38.96,59.56,["turkmenistan"]],
-        ["Spojené arabské emiráty",23.42,53.84,["uae","emirates"]],
-        ["Uzbekistán",41.37,64.58,["uzbekistan"]],
-        ["Vietnam",14.05,108.27,["vietnam"]],
-        ["Jemen",15.55,48.51,["yemen"]],
-        
-        // Amerika (35)
-        ["Antigua a Barbuda",17.06,-61.80,["antigua"]],
-        ["Argentina",-38.41,-63.61,["argentina"]],
-        ["Bahamy",25.03,-77.39,["bahamas"]],
-        ["Barbados",13.19,-59.54,["barbados"]],
-        ["Belize",17.18,-88.49,["belize"]],
-        ["Bolívie",-16.29,-63.58,["bolivia"]],
-        ["Brazílie",-14.23,-51.92,["brazil"]],
-        ["Kanada",56.13,-106.34,["canada"]],
-        ["Chile",-35.67,-71.54,["chile"]],
-        ["Kolumbie",4.57,-74.29,["colombia"]],
-        ["Kostarika",9.74,-83.75,["costa rica"]],
-        ["Kuba",21.52,-77.78,["cuba"]],
-        ["Dominika",15.41,-61.37,["dominica"]],
-        ["Dominikánská republika",18.73,-70.16,["dominican republic"]],
-        ["Ekvádor",-1.83,-78.18,["ecuador"]],
-        ["Salvador",13.79,-88.89,["el salvador"]],
-        ["Grenada",12.26,-61.60,["grenada"]],
-        ["Guatemala",15.78,-90.23,["guatemala"]],
-        ["Guyana",4.86,-58.93,["guyana"]],
-        ["Haiti",18.97,-72.28,["haiti"]],
-        ["Honduras",15.19,-86.24,["honduras"]],
-        ["Jamajka",18.10,-77.29,["jamaica"]],
-        ["Mexiko",23.63,-102.55,["mexico"]],
-        ["Nikaragua",12.86,-85.20,["nicaragua"]],
-        ["Panama",8.53,-80.78,["panama"]],
-        ["Paraguay",-23.44,-58.44,["paraguay"]],
-        ["Peru",-9.19,-75.01,["peru"]],
-        ["Svatý Kryštof a Nevis",17.35,-62.78,["saint kitts"]],
-        ["Svatá Lucie",13.90,-60.97,["saint lucia"]],
-        ["Svatý Vincenc a Grenadiny",13.25,-61.19,["saint vincent"]],
-        ["Surinam",3.91,-56.02,["suriname"]],
-        ["Trinidad a Tobago",10.69,-61.22,["trinidad"]],
-        ["USA",37.09,-95.71,["usa","united states","america"]],
-        ["Uruguay",-32.52,-55.76,["uruguay"]],
-        ["Venezuela",6.42,-66.58,["venezuela"]],
-        
-        // Afrika (54)
-        ["Alžírsko",28.03,1.65,["algeria"]],
-        ["Angola",-11.20,17.87,["angola"]],
-        ["Benin",9.30,2.31,["benin"]],
-        ["Botswana",-22.32,24.68,["botswana"]],
-        ["Burkina Faso",12.23,-1.56,["burkina faso"]],
-        ["Burundi",-3.37,29.91,["burundi"]],
-        ["Kamerun",7.36,12.35,["cameroon"]],
-        ["Kapverdy",16.53,-23.56,["cape verde"]],
-        ["Středoafrická republika",6.61,20.93,["central african republic"]],
-        ["Čad",15.45,18.73,["chad"]],
-        ["Komory",-11.64,43.33,["comoros"]],
-        ["Kongo (DR)",-4.03,21.75,["dr congo","congo"]],
-        ["Kongo",-0.22,15.82,["congo republic"]],
-        ["Džibutsko",11.82,42.59,["djibouti"]],
-        ["Egypt",26.20,30.80,["egypt"]],
-        ["Rovníková Guinea",1.65,10.26,["equatorial guinea"]],
-        ["Eritrea",15.17,39.78,["eritrea"]],
-        ["Svazijsko",-26.52,31.46,["eswatini","swaziland"]],
-        ["Etiopie",9.14,40.48,["ethiopia"]],
-        ["Gabon",-0.80,11.60,["gabon"]],
-        ["Gambie",13.44,-15.31,["gambia"]],
-        ["Ghana",7.94,-1.02,["ghana"]],
-        ["Guinea",9.94,-9.69,["guinea"]],
-        ["Guinea-Bissau",11.80,-15.18,["guinea bissau"]],
-        ["Pobřeží slonoviny",7.54,-5.54,["ivory coast"]],
-        ["Keňa",-0.02,37.90,["kenya"]],
-        ["Lesotho",-29.61,28.23,["lesotho"]],
-        ["Liberie",6.42,-9.42,["liberia"]],
-        ["Libye",26.33,17.22,["libya"]],
-        ["Madagaskar",-18.76,46.86,["madagascar"]],
-        ["Malawi",-13.25,34.30,["malawi"]],
-        ["Mali",17.57,-3.99,["mali"]],
-        ["Mauritánie",21.00,-10.94,["mauritania"]],
-        ["Mauricius",-20.34,57.55,["mauritius"]],
-        ["Maroko",31.79,-7.09,["morocco"]],
-        ["Mosambik",-18.66,35.52,["mozambique"]],
-        ["Namibie",-22.95,18.49,["namibia"]],
-        ["Niger",17.60,8.08,["niger"]],
-        ["Nigérie",9.08,8.67,["nigeria"]],
-        ["Rwanda",-1.94,29.87,["rwanda"]],
-        ["Svatý Tomáš a Princův ostrov",0.18,6.61,["sao tome"]],
-        ["Senegal",14.49,-14.45,["senegal"]],
-        ["Seychely",-4.67,55.46,["seychelles"]],
-        ["Sierra Leone",8.46,-11.77,["sierra leone"]],
-        ["Somálsko",5.15,46.19,["somalia"]],
-        ["Jižní Afrika",-30.55,22.93,["south africa"]],
-        ["Jižní Súdán",6.87,31.30,["south sudan"]],
-        ["Súdán",12.86,30.21,["sudan"]],
-        ["Tanzánie",-6.36,34.88,["tanzania"]],
-        ["Togo",8.61,0.82,["togo"]],
-        ["Tunisko",33.88,9.53,["tunisia"]],
-        ["Uganda",1.37,32.29,["uganda"]],
-        ["Zambie",-13.13,27.85,["zambia"]],
-        ["Zimbabwe",-19.01,29.15,["zimbabwe"]],
-        
-        // Oceánie (14)
-        ["Austrálie",-25.27,133.77,["australia"]],
-        ["Fidži",-17.71,178.06,["fiji"]],
-        ["Kiribati",-3.37,-168.73,["kiribati"]],
-        ["Marshallovy ostrovy",7.13,171.18,["marshall islands"]],
-        ["Mikronésie",7.42,150.55,["micronesia"]],
-        ["Nauru",-0.52,166.93,["nauru"]],
-        ["Nový Zéland",-40.90,174.88,["new zealand"]],
-        ["Palau",7.51,134.58,["palau"]],
-        ["Papua Nová Guinea",-6.31,143.95,["papua new guinea"]],
-        ["Samoa",-13.75,-172.10,["samoa"]],
-        ["Šalomounovy ostrovy",-9.64,160.15,["solomon islands"]],
-        ["Tonga",-21.17,-175.20,["tonga"]],
-        ["Tuvalu",-7.10,179.15,["tuvalu"]],
-        ["Vanuatu",-15.37,166.95,["vanuatu"]]
-    ];
-    
-    // Socket.io connection (pokud je server dostupný)
-    let socket = null;
-    try {
-        socket = io();
-    } catch(e) {
-        console.log('Socket.io není dostupný - offline mód');
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
-    // Pomocné funkce
-    function showToast(msg) {
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:white;padding:15px 30px;border-radius:50px;z-index:10000;border:1px solid rgba(255,255,255,0.2)';
-        toast.textContent = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+    function createEl(tag, cls, text) {
+        const el = document.createElement(tag);
+        if (cls) el.className = cls;
+        if (text !== undefined) el.textContent = text;
+        return el;
     }
     
-    function normalize(str) {
-        return str.toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, "");
+    function formatDate(date) {
+        return `${date.getDate()}.${date.getMonth()+1}.${date.getFullYear()}`;
     }
     
-    // High Score funkce
     function loadHighScores() {
         try {
-            return JSON.parse(localStorage.getItem(HIGHSCORE_KEY)) || [];
+            const data = localStorage.getItem(HIGHSCORE_KEY);
+            return data ? JSON.parse(data) : [];
         } catch(e) {
             return [];
         }
@@ -1051,419 +516,804 @@ const game = (function() {
     
     function saveHighScore(name, score, countries) {
         const scores = loadHighScores();
-        scores.push({name: name || 'Anonymous', score, countries, date: new Date().toISOString()});
-        scores.sort((a,b) => b.score - a.score);
-        scores.splice(10); // max 10
-        localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(scores));
+        const newScore = {
+            name: name.slice(0, 20) || 'Anonym',
+            score: score,
+            countries: countries,
+            date: new Date().toISOString()
+        };
+        
+        scores.push(newScore);
+        scores.sort((a, b) => b.score - a.score);
+        scores.splice(MAX_HIGHSCORES);
+        
+        try {
+            localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(scores));
+        } catch(e) {
+            console.error('Nelze uložit skóre:', e);
+        }
         updateHighScoreDisplay();
     }
     
     function updateHighScoreDisplay() {
-        const list = document.getElementById('highscore-list');
+        const container = document.getElementById('highscore-list');
         const scores = loadHighScores();
+        const clearBtn = document.getElementById('clear-scores-btn');
         
-        if(scores.length === 0) {
-            list.innerHTML = '<div style="color:#64748b;text-align:center;padding:20px;">Zatím žádné skóre. Zahraj si singleplayer!</div>';
+        if (scores.length === 0) {
+            container.innerHTML = '<div class="no-scores">Zatím žádné skóre. Zahraj si singleplayer!</div>';
+            clearBtn.style.display = 'none';
             return;
         }
         
-        list.innerHTML = scores.map((s,i) => `
-            <div class="highscore-item">
-                <span>${i+1}. ${s.name}</span>
-                <span style="color:#818cf8;font-weight:bold">${s.score} bodů</span>
-            </div>
-        `).join('');
+        clearBtn.style.display = 'block';
+        container.innerHTML = '';
+        
+        scores.forEach((s, index) => {
+            const div = createEl('div', 'highscore-item');
+            const rank = createEl('span', 'rank', `${index + 1}.`);
+            const name = createEl('span', 'name', escapeHtml(s.name));
+            const points = createEl('span', 'score', `${s.score}b`);
+            const date = createEl('span', 'date', formatDate(new Date(s.date)));
+            
+            div.appendChild(rank);
+            div.appendChild(name);
+            div.appendChild(date);
+            div.appendChild(points);
+            container.appendChild(div);
+        });
     }
     
-    // Map funkce
-    function initMap(lat, lng, zoom = 16) {
-        if(state.map) {
-            state.map.remove();
+    function clearHighScores() {
+        if (confirm('Opravdu chceš smazat všechna skóre?')) {
+            localStorage.removeItem(HIGHSCORE_KEY);
+            updateHighScoreDisplay();
         }
-        
-        const mapEl = document.getElementById('map');
-        if(!mapEl) return;
-        
-        state.map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false,
-            dragging: false,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            keyboard: false
-        }).setView([lat, lng], zoom);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            crossOrigin: true
-        }).addTo(state.map);
     }
     
-    function zoomOut() {
-        if(!state.map || !state.currentCountry) return;
-        const zooms = [16, 13, 10, 6, 3];
-        const currentZoom = state.map.getZoom();
-        const idx = zooms.indexOf(currentZoom);
-        const newZoom = zooms[Math.min(idx + 1, zooms.length - 1)];
-        state.map.setView([state.currentCountry[1], state.currentCountry[2]], newZoom);
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            if (type === 'success') {
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            } else {
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            }
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch (e) {}
     }
+
+    let countries = [];
+    const socket = io({ transports: ['websocket'], reconnection: true, reconnectionAttempts: 5 });
     
-    // Hra funkce
-    function nextCountry() {
-        // Vyber náhodnou zemi
-        const prev = state.currentCountry;
-        let next;
-        do {
-            next = countries[Math.floor(Math.random() * countries.length)];
-        } while(next === prev && countries.length > 1);
+    socket.on('init-data', (data) => { countries = data.countries.world || []; });
+    
+    const state = {
+        map: null, currentCountry: null, attempts: 0, gameMode: null,
+        score: 0, streak: 0, isHost: false, roomCode: null,
+        myId: null, players: [], maxPlayers: 4,
+        currentRound: 1, totalRounds: 5,
+        lastGuess: 0, lastChat: 0, finished: false,
+        guessCooldown: false,
+        timeLeft: 300,
+        timerInterval: null,
+        countriesGuessed: 0,
+        rematchVoted: false
+    };
+
+    const config = {
+        maxAttempts: 5, zoomLevels: [16, 13, 10, 6, 3],
+        zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"],
+        singlePlayerTime: 300
+    };
+
+    window.addEventListener('beforeunload', (e) => {
+        if (state.gameMode === 'mp' && !state.finished && state.currentRound < state.totalRounds) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // MOBIL: Zabránění zoomu při double tap na inputy
+    if (isMobile) {
+        document.addEventListener('dblclick', function(event) {
+            if (event.target.tagName === 'INPUT') {
+                event.preventDefault();
+            }
+        }, { passive: false });
+    }
+
+    socket.on('room-created', (data) => {
+        state.roomCode = data.code;
+        state.isHost = true;
+        state.myId = socket.id;
+        state.maxPlayers = data.maxPlayers;
+        document.getElementById('room-code').textContent = data.code;
+        document.getElementById('max-count').textContent = data.maxPlayers;
+        document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.menu').classList.add('hidden');
+        document.getElementById('host-panel').classList.remove('hidden');
+        updateLobbyPlayerList([{ id: socket.id, name: 'Host', isHost: true }], state.maxPlayers);
         
-        state.currentCountry = next;
+        // MOBIL: Automaticky zkopírovat kód na mobilu pro snadné sdílení
+        if (isMobile && navigator.clipboard) {
+            setTimeout(() => {
+                copyLink();
+            }, 500);
+        }
+    });
+
+    socket.on('player-joined', (data) => {
+        showToast(`${escapeHtml(data.name)} se připojil! (${data.count}/${data.max})`);
+        document.getElementById('player-count').textContent = data.count;
+        if (state.isHost && data.count >= 2) {
+            document.getElementById('start-game-btn').classList.remove('hidden');
+        }
+    });
+
+    socket.on('player-list', (data) => {
+        if (state.isHost) {
+            document.getElementById('player-count').textContent = data.players.length;
+            updateLobbyPlayerList(data.players, data.max);
+            if (data.players.length >= 2) {
+                document.getElementById('start-game-btn').classList.remove('hidden');
+            }
+        } else {
+            document.getElementById('guest-player-count').textContent = data.players.length;
+            document.getElementById('guest-max-count').textContent = data.max;
+            updateGuestLobbyList(data.players);
+        }
+    });
+
+    socket.on('joined-room', (data) => {
+        state.roomCode = data.code;
+        state.isHost = false;
+        state.myId = data.yourId;
+        document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.menu').classList.add('hidden');
+        document.getElementById('join-form').classList.add('hidden');
+        document.getElementById('guest-lobby').classList.remove('hidden');
+        document.getElementById('guest-chat-input').disabled = false;
+        document.querySelector('#guest-lobby .chat-input button').disabled = false;
+        document.getElementById('join-error').textContent = '';
+    });
+
+    socket.on('chat-history', (msgs) => {
+        const chatId = state.isHost ? 'host-chat' : 'guest-chat';
+        msgs.forEach(m => addChatMsg(m, chatId));
+    });
+
+    socket.on('new-chat-message', (data) => {
+        const chatId = state.isHost ? 'host-chat' : 'guest-chat';
+        addChatMsg(data, chatId);
+    });
+
+    socket.on('game-started', (data) => {
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('host-panel').classList.add('hidden');
+        document.getElementById('join-panel').classList.add('hidden');
+        state.totalRounds = data.totalRounds || 5;
+        document.getElementById('total-rounds').textContent = state.totalRounds;
+        state.rematchVoted = false;
+        document.getElementById('rematch-btn').textContent = '🔄 Nová hra';
+        document.getElementById('rematch-btn').disabled = false;
+        document.getElementById('rematch-status').classList.add('hidden');
+        startMPGame();
+        
+        // MOBIL: Na mobilu skrýt adresní řádu pro větší prostor
+        if (isMobile && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => {});
+        }
+    });
+
+    socket.on('new-round', (data) => {
+        state.currentCountry = data.country;
+        state.currentRound = data.round;
+        state.totalRounds = data.totalRounds;
+        state.finished = false;
         state.attempts = 0;
-        
-        // Zobraz mapu
-        document.getElementById('map-loader').style.display = 'none';
-        initMap(next[1], next[2], 16);
-        
-        // Povol input
-        document.getElementById('guessInput').disabled = false;
-        document.getElementById('guessBtn').disabled = false;
-        document.getElementById('guessInput').value = '';
-        document.getElementById('guessInput').focus();
-        updateHint();
-    }
-    
-    function updateHint() {
-        const labels = ["Velmi detailní", "Detailní", "Město", "Region", "Celá země"];
+        state.players = data.players;
+        updateScoreboard();
+        document.getElementById('round').textContent = state.currentRound;
+        document.getElementById('hint').textContent = `Kolo ${state.currentRound} začíná!`;
+        initMap();
+        setTimeout(() => {
+            setInputEnabled(true);
+            updateHint();
+        }, 1000);
+    });
+
+    socket.on('round-result', (data) => {
+        state.finished = true;
+        setInputEnabled(false);
         const hint = document.getElementById('hint');
-        hint.textContent = `Pokus ${state.attempts + 1}/5 - ${labels[state.attempts] || 'Poslední šance'}`;
-        hint.className = '';
-    }
-    
-    function makeGuess() {
-        const input = document.getElementById('guessInput');
-        const val = input.value.trim();
-        if(!val) return;
+        hint.innerHTML = '';
         
-        const normVal = normalize(val);
-        const country = state.currentCountry;
-        const correct = normalize(country[0]) === normVal || 
-                       country[3].some(alt => normalize(alt) === normVal);
-        
-        if(correct) {
-            // Správně
-            const points = 50 - (state.attempts * 10);
-            state.score += points;
-            state.countriesGuessed++;
-            state.streak++;
-            
-            document.getElementById('score').textContent = state.score;
-            document.getElementById('countries-count').textContent = state.countriesGuessed;
-            
-            const hint = document.getElementById('hint');
-            hint.innerHTML = `✓ Správně! ${country[0]} <span style="color:#fbbf24">+${points} bodů</span>`;
-            hint.className = 'success';
-            
-            document.getElementById('guessInput').disabled = true;
-            document.getElementById('guessBtn').disabled = true;
-            
-            if(state.mode === 'single' && state.timeLeft > 0) {
-                setTimeout(nextCountry, 1500);
-            } else {
-                setTimeout(endGame, 1500);
-            }
+        if (data.winner) {
+            hint.appendChild(createEl('span', 'success', `🏆 ${escapeHtml(data.winner)} uhodl zemi! Bylo to ${escapeHtml(data.countryName)}`));
+            playSound('success');
         } else {
-            // Špatně
-            state.attempts++;
-            state.streak = 0;
-            
-            if(state.attempts >= 5) {
-                const hint = document.getElementById('hint');
-                hint.innerHTML = `✗ Správná odpověď: <strong>${country[0]}</strong>`;
-                hint.className = 'fail';
-                
-                document.getElementById('guessInput').disabled = true;
-                document.getElementById('guessBtn').disabled = true;
-                
-                if(state.mode === 'single' && state.timeLeft > 0) {
-                    setTimeout(nextCountry, 2000);
-                }
-            } else {
-                zoomOut();
-                updateHint();
-                input.classList.add('shake');
-                setTimeout(() => input.classList.remove('shake'), 500);
-            }
+            hint.appendChild(createEl('span', 'fail', `Nikdo neuhodl! Bylo to ${escapeHtml(data.countryName)}`));
+            playSound('error');
         }
         
-        // Skryj autocomplete
-        document.getElementById('autocomplete-list').style.display = 'none';
-    }
-    
-    function endGame() {
-        clearInterval(state.timerInterval);
-        state.gameActive = false;
-        
-        const modal = document.getElementById('game-over');
-        const title = document.getElementById('go-title');
-        const results = document.getElementById('go-results');
-        
-        title.textContent = state.mode === 'single' ? 'Čas vypršel!' : 'Konec hry!';
-        
-        if(state.mode === 'single') {
-            results.innerHTML = `
-                <div class="score-row">
-                    <span>Celkové skóre:</span>
-                    <span style="font-size:24px;color:#818cf8;font-weight:bold">${state.score}</span>
-                </div>
-                <div class="score-row">
-                    <span>Uhodnutých zemí:</span>
-                    <span>${state.countriesGuessed}</span>
-                </div>
-                <div class="score-row">
-                    <span>Nejvyšší série:</span>
-                    <span>${state.streak}</span>
-                </div>
-            `;
-            
-            // Ulož skóre
-            const name = prompt(`Gratulace! Získal jsi ${state.score} bodů.\nZadej svoje jméno pro žebříček:`);
-            if(name) saveHighScore(name, state.score, state.countriesGuessed);
-        } else {
-            // Multiplayer results
-            results.innerHTML = '<div style="text-align:left">Multiplayer výsledky...</div>';
+        state.players = data.scores.map(s => ({ id: s.id, name: s.name, score: s.score }));
+        updateScoreboard();
+    });
+
+    socket.on('player-out', (data) => {
+        showToast(`${escapeHtml(data.name)} došly pokusy!`);
+        const playerCard = document.querySelector(`[data-player-id="${data.id}"]`);
+        if (playerCard) playerCard.classList.add('out');
+    });
+
+    socket.on('game-over', (data) => {
+        // MOBIL: Ukončit fullscreen pokud je aktivní
+        if (isMobile && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
         }
         
-        modal.style.display = 'flex';
+        let title, subtitle;
+        
+        if (data.isDraw) {
+            title = 'Remíza!';
+            subtitle = 'Vítězové: ' + data.winners.map(w => w.name).join(', ');
+        } else if (data.winners && data.winners.length === 1) {
+            const isMe = data.winners[0].id === state.myId;
+            title = isMe ? '🎉 Vyhrál jsi!' : '🏆 Konec hry';
+            subtitle = isMe ? 'Jsi šampion!' : `Vítěz: ${data.winners[0].name}`;
+        } else {
+            title = 'Konec hry!';
+            subtitle = '';
+        }
+        
+        document.getElementById('winners-title').textContent = title;
+        document.getElementById('winners-subtitle').textContent = subtitle;
+        
+        const scoresDiv = document.getElementById('final-scores');
+        scoresDiv.innerHTML = '';
+        
+        const sorted = [...data.scores].sort((a,b) => b.score - a.score);
+        sorted.forEach((p, idx) => {
+            const isWinner = data.winners.some(w => w.id === p.id);
+            const isMe = p.id === state.myId;
+            const div = createEl('div', `score-item ${isWinner ? 'winner' : ''} ${isMe ? 'you' : ''}`);
+            
+            const rank = createEl('span', 'score-rank', `${idx + 1}.`);
+            const name = createEl('span', 'score-name', escapeHtml(p.name) + (isMe ? ' (Ty)' : ''));
+            const points = createEl('span', 'score-points', `${p.score} bodů`);
+            
+            div.appendChild(rank);
+            div.appendChild(name);
+            div.appendChild(points);
+            scoresDiv.appendChild(div);
+        });
+        
+        const rematchBtn = document.getElementById('rematch-btn');
+        rematchBtn.style.display = 'inline-block';
+        rematchBtn.textContent = '🔄 Nová hra';
+        rematchBtn.disabled = false;
+        state.rematchVoted = false;
+        
+        document.getElementById('game-over').classList.add('show');
+    });
+
+    socket.on('rematch-status', (data) => {
+        const statusEl = document.getElementById('rematch-status');
+        statusEl.classList.remove('hidden');
+        
+        if (data.ready) {
+            statusEl.textContent = 'Všichni připraveni! Startuji...';
+            statusEl.classList.add('ready');
+        } else {
+            statusEl.textContent = `Připraveni: ${data.votes}/${data.total}`;
+            statusEl.classList.remove('ready');
+        }
+        
+        if (state.rematchVoted) {
+            document.getElementById('rematch-btn').disabled = true;
+            document.getElementById('rematch-btn').textContent = `✓ Připraven (${data.votes}/${data.total})`;
+        }
+    });
+
+    socket.on('became-host', () => {
+        state.isHost = true;
+        showToast('Stal ses hostem!');
+    });
+
+    socket.on('join-error', (msg) => {
+        document.getElementById('join-error').textContent = escapeHtml(msg);
+    });
+
+    function updateLobbyPlayerList(players, max) {
+        const list = document.getElementById('lobby-player-list');
+        list.innerHTML = '';
+        players.forEach(p => {
+            const div = createEl('div', `player-item ${p.id === state.myId ? 'you' : ''}`);
+            const nameSpan = createEl('span', 'name', escapeHtml(p.name));
+            if (p.isHost) {
+                const badge = createEl('span', 'host-badge', 'HOST');
+                nameSpan.appendChild(badge);
+            }
+            div.appendChild(nameSpan);
+            list.appendChild(div);
+        });
     }
-    
-    // Timer pro singleplayer
+
+    function updateGuestLobbyList(players) {
+        const list = document.getElementById('guest-lobby-player-list');
+        if (!list) return;
+        list.innerHTML = '';
+        players.forEach(p => {
+            const div = createEl('div', `player-item ${p.id === state.myId ? 'you' : ''}`);
+            const nameSpan = createEl('span', 'name', escapeHtml(p.name));
+            if (p.isHost) {
+                const badge = createEl('span', 'host-badge', 'HOST');
+                nameSpan.appendChild(badge);
+            }
+            div.appendChild(nameSpan);
+            list.appendChild(div);
+        });
+    }
+
+    function updateScoreboard() {
+        const board = document.getElementById('mp-scoreboard');
+        board.innerHTML = '';
+        state.players.forEach(p => {
+            const card = createEl('div', 'player-card');
+            card.setAttribute('data-player-id', p.id);
+            if (p.id === state.myId) card.classList.add('you', 'active');
+            card.appendChild(createEl('div', 'name', escapeHtml(p.name)));
+            card.appendChild(createEl('div', 'score', p.score));
+            board.appendChild(card);
+        });
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = escapeHtml(msg);
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function addChatMsg(data, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const div = createEl('div', `chat-message ${data.isSystem ? 'system' : ''} ${data.isHost ? 'host' : ''}`);
+        if (!data.isSystem) {
+            const b = createEl('b', '', escapeHtml(data.sender) + ':');
+            div.appendChild(b);
+            div.appendChild(document.createTextNode(' '));
+        }
+        div.appendChild(document.createTextNode(escapeHtml(data.text)));
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function showMain() {
+        socket.disconnect();
+        location.reload();
+    }
+
+    function showJoin() {
+        document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.menu').classList.add('hidden');
+        document.getElementById('join-panel').classList.remove('hidden');
+        document.getElementById('join-code').focus();
+    }
+
+    function copyLink() {
+        if (!state.roomCode) return;
+        const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
+        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!')).catch(() => {
+            // Fallback pro mobil
+            showToast('Kód: ' + state.roomCode);
+        });
+    }
+
+    function setInputEnabled(en) {
+        document.getElementById('guessInput').disabled = !en;
+        document.getElementById('guessBtn').disabled = !en;
+        if (en) { 
+            document.getElementById('guessInput').value = ''; 
+            document.getElementById('guessInput').focus(); 
+        }
+    }
+
+    function showMapLoader() { document.getElementById('map-loader').classList.remove('hidden'); }
+    function hideMapLoader() { document.getElementById('map-loader').classList.add('hidden'); }
+
+    function startHost() {
+        const continent = document.getElementById('continent-select').value;
+        const maxPlayers = parseInt(document.getElementById('max-players').value);
+        socket.emit('create-room', { continent, maxPlayers });
+    }
+
+    function joinGame() {
+        const code = document.getElementById('join-code').value;
+        const nickname = document.getElementById('join-nickname').value.slice(0, 20) || 'Hráč';
+        if (!code) return;
+        document.getElementById('join-error').textContent = 'Připojování...';
+        socket.emit('join-room', { code, nickname });
+    }
+
+    function startGameFromLobby() {
+        socket.emit('start-game');
+        document.getElementById('start-game-btn').textContent = 'Načítání...';
+        document.getElementById('start-game-btn').disabled = true;
+    }
+
+    function sendChat(role) {
+        const inp = document.getElementById(role === 'host' ? 'host-chat-input' : 'guest-chat-input');
+        const text = inp.value.trim();
+        if (!text || Date.now() - state.lastChat < 500) return;
+        state.lastChat = Date.now();
+        socket.emit('chat-message', text);
+        inp.value = '';
+    }
+
+    function startMPGame() {
+        state.gameMode = 'mp';
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('game-panel').classList.remove('hidden');
+        document.getElementById('single-stats').classList.add('hidden');
+        document.getElementById('mp-scoreboard').classList.remove('hidden');
+        document.getElementById('round-display').classList.remove('hidden');
+        document.getElementById('game-over').classList.remove('show');
+    }
+
+    function initMap() {
+        showMapLoader();
+        if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
+        state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
+        
+        setTimeout(() => {
+            if (state.map) {
+                state.map.invalidateSize();
+                hideMapLoader();
+            }
+        }, 2000);
+    }
+
+    function startSingle() {
+        if (!countries.length) { showToast('Načítání...'); return; }
+        
+        state.gameMode = 'single';
+        state.score = 0; 
+        state.streak = 0;
+        state.countriesGuessed = 0;
+        state.timeLeft = config.singlePlayerTime;
+        state.finished = false;
+        
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('game-panel').classList.remove('hidden');
+        document.getElementById('single-stats').classList.remove('hidden');
+        document.getElementById('mp-scoreboard').classList.add('hidden');
+        document.getElementById('round-display').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('show');
+        
+        document.getElementById('score').textContent = '0';
+        document.getElementById('streak').textContent = '0';
+        document.getElementById('countries-count').textContent = '0';
+        
+        startTimer();
+        nextSingleRound();
+        
+        // MOBIL: Fullscreen pro lepší zážitek
+        if (isMobile && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => {});
+        }
+    }
+
     function startTimer() {
-        state.timeLeft = SINGLE_TIME;
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
         updateTimerDisplay();
         
         state.timerInterval = setInterval(() => {
             state.timeLeft--;
             updateTimerDisplay();
             
-            if(state.timeLeft <= 0) {
-                endGame();
+            if (state.timeLeft <= 0) {
+                endSingleGame();
             }
         }, 1000);
     }
-    
+
     function updateTimerDisplay() {
-        const min = Math.floor(state.timeLeft / 60);
-        const sec = state.timeLeft % 60;
-        document.getElementById('timer').textContent = 
-            `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        const minutes = Math.floor(state.timeLeft / 60);
+        const seconds = state.timeLeft % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('timer').textContent = display;
+        
+        if (state.timeLeft < 30) {
+            document.getElementById('timer').style.background = '#e74c3c';
+        } else {
+            document.getElementById('timer').style.background = '#667eea';
+        }
     }
-    
-    // Autocomplete
-    function setupAutocomplete() {
-        const input = document.getElementById('guessInput');
-        const list = document.getElementById('autocomplete-list');
+
+    function endSingleGame() {
+        clearInterval(state.timerInterval);
+        state.finished = true;
+        setInputEnabled(false);
         
-        input.addEventListener('input', (e) => {
-            const val = e.target.value;
-            if(!val) {
-                list.style.display = 'none';
-                return;
-            }
-            
-            const norm = normalize(val);
-            const matches = countries.filter(c => 
-                normalize(c[0]).includes(norm) || 
-                c[3].some(a => normalize(a).includes(norm))
-            ).slice(0, 5);
-            
-            if(matches.length === 0) {
-                list.style.display = 'none';
-                return;
-            }
-            
-            list.innerHTML = matches.map(c => `
-                <div class="autocomplete-item" onclick="game.selectCountry('${c[0]}')">
-                    ${c[0].replace(new RegExp(val, 'gi'), match => `<strong>${match}</strong>`)}
-                </div>
-            `).join('');
-            
-            list.style.display = 'block';
-        });
+        // MOBIL: Ukončit fullscreen
+        if (isMobile && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
         
-        // Skryj při kliknutí mimo
-        document.addEventListener('click', (e) => {
-            if(e.target !== input) list.style.display = 'none';
-        });
+        const playerName = prompt(`Konec hry! Získal jsi ${state.score} bodů.\nZadej svoje jméno pro tabulku nejlepších:`) || 'Hráč';
+        saveHighScore(playerName, state.score, state.countriesGuessed);
+        
+        document.getElementById('winners-title').textContent = '⏰ Čas vypršel!';
+        document.getElementById('winners-subtitle').textContent = `Uhodl jsi ${state.countriesGuessed} zemí a získal ${state.score} bodů!`;
+        
+        const scoresDiv = document.getElementById('final-scores');
+        scoresDiv.innerHTML = `
+            <div class="score-item you" style="justify-content: center; flex-direction: column; text-align: center; gap: 10px;">
+                <div style="font-size: 28px; font-weight: bold; color: #667eea;">${state.score} bodů</div>
+                <div style="color: #666;">${state.countriesGuessed} zemí | Série: ${state.streak}</div>
+            </div>
+        `;
+        
+        document.getElementById('rematch-btn').style.display = 'inline-block';
+        document.getElementById('rematch-btn').textContent = '🔄 Hrát znovu';
+        document.getElementById('rematch-btn').disabled = false;
+        document.getElementById('rematch-status').classList.add('hidden');
+        
+        document.getElementById('game-over').classList.add('show');
     }
-    
-    // Socket.io eventy (pokud je připojení)
-    if(socket) {
-        socket.on('connect', () => {
-            console.log('Připojeno k serveru');
-        });
+
+    function nextSingleRound() {
+        if (state.timeLeft <= 0 || state.finished) return;
         
-        socket.on('room-created', (data) => {
-            state.roomCode = data.code;
-            document.getElementById('room-code').textContent = data.code;
-            document.getElementById('create-lobby').style.display = 'none';
-            document.getElementById('host-lobby').style.display = 'block';
-        });
+        let newCountry;
+        do {
+            newCountry = countries[Math.floor(Math.random() * countries.length)];
+        } while (state.currentCountry && newCountry[0] === state.currentCountry[0] && countries.length > 1);
         
-        socket.on('player-joined', (data) => {
-            showToast(`${data.name} se připojil!`);
-            // Update player list...
-        });
+        state.currentCountry = newCountry;
+        state.attempts = 0;
+        initMap();
+        updateHint();
+        setInputEnabled(true);
     }
-    
-    // Veřejné metody
-    return {
-        init: function() {
-            updateHighScoreDisplay();
-            setupAutocomplete();
-            
-            // Pokud je v URL kód, rovnou zobraz join
-            const urlParams = new URLSearchParams(window.location.search);
-            const room = urlParams.get('room');
-            if(room) {
-                document.getElementById('main-menu').style.display = 'none';
-                document.getElementById('join-lobby').style.display = 'block';
-                document.getElementById('join-code').value = room;
-            }
-        },
+
+    function makeGuess() {
+        if (state.guessCooldown || Date.now() - state.lastGuess < 300) return;
+        state.lastGuess = Date.now();
+        state.guessCooldown = true;
+        setTimeout(() => state.guessCooldown = false, 300);
         
-        showMain: function() {
-            document.querySelectorAll('.menu-panel, .lobby-panel, #game-panel').forEach(el => {
-                el.style.display = 'none';
-            });
-            document.getElementById('main-menu').style.display = 'block';
-            document.getElementById('game-section').scrollIntoView({behavior: 'smooth'});
-            
-            // Ukonči hru pokud běží
-            clearInterval(state.timerInterval);
-            state.gameActive = false;
-        },
+        if (state.gameMode === 'mp' && state.finished) return;
+        if (state.gameMode === 'single' && state.timeLeft <= 0) return;
         
-        showCreate: function() {
-            document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('create-lobby').style.display = 'block';
-        },
+        const inp = document.getElementById('guessInput');
+        const val = inp.value.trim();
+        if (!val) { inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 500); return; }
+
+        const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const correct = norm(val) === norm(state.currentCountry[0]) || state.currentCountry[3].some(a => norm(val) === norm(a));
         
-        showJoin: function() {
-            document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('join-lobby').style.display = 'block';
-        },
-        
-        createRoom: function() {
-            const continent = document.getElementById('continent-select').value;
-            const maxPlayers = document.getElementById('max-players').value;
-            
-            if(socket) {
-                socket.emit('create-room', {continent, maxPlayers});
+        if (correct) {
+            if (state.gameMode === 'mp') {
+                socket.emit('correct-guess');
             } else {
-                // Offline simulace
-                const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-                state.roomCode = code;
-                state.isHost = true;
-                document.getElementById('room-code').textContent = code;
-                document.getElementById('create-lobby').style.display = 'none';
-                document.getElementById('host-lobby').style.display = 'block';
-                showToast('Místnost vytvořena! Kód: ' + code);
+                handleSingleCorrect();
             }
-        },
-        
-        joinRoom: function() {
-            const code = document.getElementById('join-code').value.trim();
-            const name = document.getElementById('join-name').value.trim() || 'Hráč';
-            
-            if(!code) {
-                document.getElementById('join-error').textContent = 'Zadej kód místnosti!';
-                return;
-            }
-            
-            if(socket) {
-                socket.emit('join-room', {code, name});
+        } else {
+            handleWrong();
+        }
+    }
+
+    function handleSingleCorrect() {
+        const pts = Math.floor(50 / (state.attempts + 1));
+        state.score += pts; 
+        state.streak++;
+        state.countriesGuessed++;
+        document.getElementById('score').textContent = state.score;
+        document.getElementById('streak').textContent = state.streak;
+        document.getElementById('countries-count').textContent = state.countriesGuessed;
+        document.getElementById('hint').innerHTML = `<span class="success">✓ ${state.currentCountry[0]}! +${pts}b</span>`;
+        playSound('success');
+        setInputEnabled(false);
+        setTimeout(nextSingleRound, 1500);
+    }
+
+    function handleWrong() {
+        playSound('error');
+        state.attempts++;
+        if (state.gameMode === 'single') {
+            if (state.attempts >= config.maxAttempts) {
+                state.streak = 0;
+                document.getElementById('streak').textContent = '0';
+                document.getElementById('hint').innerHTML = `<span class="fail">✗ Bylo to ${state.currentCountry[0]}</span>`;
+                setInputEnabled(false);
+                setTimeout(nextSingleRound, 2000);
             } else {
-                document.getElementById('join-lobby').style.display = 'none';
-                document.getElementById('guest-wait').style.display = 'block';
-                showToast('Připojuji se k ' + code + '...');
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+                updateHint();
             }
-        },
-        
-        startSingle: function() {
-            state.mode = 'single';
-            state.score = 0;
-            state.countriesGuessed = 0;
-            state.streak = 0;
-            state.gameActive = true;
-            
-            // UI přepnutí
-            document.querySelectorAll('.menu-panel, .lobby-panel').forEach(el => el.style.display = 'none');
-            document.getElementById('game-panel').style.display = 'block';
-            document.getElementById('stat-timer').style.display = 'block';
-            document.getElementById('stat-countries').style.display = 'block';
-            document.getElementById('stat-round').style.display = 'none';
-            
-            document.getElementById('game-section').scrollIntoView({behavior: 'smooth'});
-            
-            // Start
-            nextCountry();
-            startTimer();
-        },
-        
-        startGame: function() {
-            if(socket) socket.emit('start-game');
-            showToast('Hra začíná!');
-        },
-        
-        makeGuess: makeGuess,
-        
-        selectCountry: function(name) {
-            document.getElementById('guessInput').value = name;
-            document.getElementById('autocomplete-list').style.display = 'none';
-            makeGuess();
-        },
-        
-        copyCode: function() {
-            const code = document.getElementById('room-code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                showToast('Kód zkopírován do schránky!');
-            });
-        },
-        
-        sendChat: function(role) {
-            const input = document.getElementById(role + '-chat-input');
-            const msg = input.value.trim();
-            if(!msg) return;
-            
-            const chat = document.getElementById(role + '-chat');
-            chat.innerHTML += `<div style="margin-bottom:8px"><strong style="color:#818cf8">Ty:</strong> ${msg}</div>`;
-            chat.scrollTop = chat.scrollHeight;
-            input.value = '';
-            
-            if(socket) socket.emit('chat', {room: state.roomCode, message: msg});
-        },
-        
-        backToMenu: function() {
-            if(confirm('Opravdu chceš ukončit hru?')) {
-                this.showMain();
-            }
-        },
-        
-        newGame: function() {
-            document.getElementById('game-over').style.display = 'none';
-            if(state.mode === 'single') {
-                this.startSingle();
+        } else {
+            if (state.attempts >= config.maxAttempts) {
+                setInputEnabled(false);
+                socket.emit('out-of-attempts');
+                document.getElementById('hint').textContent = 'Došly pokusy! Čekání na ostatní...';
             } else {
-                this.showMain();
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+                updateHint();
             }
         }
+    }
+
+    function updateHint() {
+        document.getElementById('hint').textContent = `Pokus ${state.attempts + 1}/${config.maxAttempts} | ${config.zoomLabels[state.attempts]}`;
+    }
+
+    function rematch() {
+        if (state.gameMode === 'mp') {
+            if (!state.rematchVoted) {
+                state.rematchVoted = true;
+                socket.emit('request-rematch');
+                document.getElementById('rematch-btn').disabled = true;
+                document.getElementById('rematch-btn').textContent = '⏳ Čekání na ostatní...';
+            }
+        } else {
+            startSingle();
+            document.getElementById('game-over').classList.remove('show');
+        }
+    }
+
+    function backToMenu() {
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        // MOBIL: Ukončit fullscreen pokud je aktivní
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
+        
+        socket.disconnect();
+        location.href = location.pathname;
+    }
+
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function handleAutocomplete(e) {
+        const val = e.target.value;
+        const list = document.getElementById('autocomplete-list');
+        list.innerHTML = '';
+        
+        if (!val || !countries.length) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const valNorm = norm(val);
+        
+        const matches = countries.filter(c => {
+            const mainMatch = norm(c[0]).includes(valNorm);
+            const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
+            return mainMatch || altMatch;
+        }).slice(0, 5);
+        
+        if (matches.length === 0) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        const safeVal = escapeRegex(val);
+        const regex = new RegExp(`(${safeVal})`, 'gi');
+        
+        matches.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            
+            const parts = c[0].split(regex);
+            parts.forEach(part => {
+                if (part.toLowerCase() === val.toLowerCase()) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = part;
+                    div.appendChild(strong);
+                } else {
+                    div.appendChild(document.createTextNode(part));
+                }
+            });
+            
+            div.onclick = () => {
+                document.getElementById('guessInput').value = c[0];
+                list.classList.remove('active');
+                makeGuess();
+            };
+            list.appendChild(div);
+        });
+        
+        list.classList.add('active');
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        updateHighScoreDisplay();
+        
+        const url = new URLSearchParams(location.search);
+        const room = url.get('room');
+        if (room) {
+            document.querySelector('.menu-grid').classList.add('hidden');
+            document.querySelector('.menu').classList.add('hidden');
+            document.getElementById('join-panel').classList.remove('hidden');
+            document.getElementById('join-code').value = room.slice(0, 10);
+        }
+        
+        document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('host');
+        });
+        
+        document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('guest');
+        });
+        
+        // MOBIL: Použít touchstart pro rychlejší reakci na mobilu
+        const guessBtn = document.getElementById('guessBtn');
+        if (isMobile) {
+            guessBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                makeGuess();
+            }, {passive: false});
+        } else {
+            guessBtn.addEventListener('click', makeGuess);
+        }
+        
+        document.getElementById('guessInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') makeGuess();
+        });
+        
+        document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-wrapper')) {
+                document.getElementById('autocomplete-list').classList.remove('active');
+            }
+        });
+        
+        // MOBIL: Skrýt klávesnici při kliknutí mimo input
+        if (isMobile) {
+            document.getElementById('map').addEventListener('touchstart', () => {
+                document.getElementById('guessInput').blur();
+            });
+        }
+    });
+
+    return {
+        startSingle,
+        startHost,
+        showJoin,
+        joinGame,
+        startGameFromLobby,
+        sendChat,
+        copyLink,
+        makeGuess,
+        rematch,
+        backToMenu,
+        showMain,
+        clearHighScores
     };
 })();
-
-// Inicializace při načtení
-document.addEventListener('DOMContentLoaded', () => {
-    game.init();
-});
 </script>
-
 </body>
 </html>
