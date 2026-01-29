@@ -1,4 +1,4 @@
-<!-- index.html - upravený multiplayer UI pro více hráčů -->
+<!-- index.html - KOMPLETNÍ VERZE -->
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -9,7 +9,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
     <style>
-        /* Základní styly zůstávají stejné, upravíme jen multiplayer část */
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; touch-action: manipulation; }
         #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
@@ -18,36 +17,28 @@
         .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
-        .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 50vh; overflow-y: auto; }
+        .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 55vh; overflow-y: auto; }
         #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: center; max-height: none; }
         h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .menu { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 600px; margin: 0 auto; }
-        .menu-btn { padding: 25px; font-size: 20px; border: none; border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .menu-btn { padding: 25px; font-size: 20px; border: none; border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; }
         .menu-btn:active { transform: scale(0.98); }
         .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .mp-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 15px; }
-        .input-group-flex { display: flex; gap: 10px; }
-        .input-group-flex input { flex: 1; }
         .continent-select { padding: 18px; border-radius: 12px; border: 2px solid #667eea; font-size: 18px; width: 100%; background: white; cursor: pointer; }
         .player-count-select { padding: 15px; border-radius: 12px; border: 2px solid #764ba2; font-size: 16px; width: 100%; background: white; }
-        
         .lobby-info { background: #667eea; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .lobby-info.waiting { background: #f59e0b; color: #000; }
         .lobby-info.ready { background: #10b981; }
-        
         .code-display { font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #667eea; text-align: center; padding: 25px; background: #f0f0f0; border-radius: 15px; margin: 20px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; }
-        
-        /* NOVÝ: Seznam hráčů v lobby */
         .player-list { background: #f8f9ff; border-radius: 15px; padding: 15px; margin: 15px 0; max-height: 150px; overflow-y: auto; }
         .player-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #e0e0e0; }
         .player-item:last-child { border-bottom: none; }
         .player-item.you { background: rgba(102, 126, 234, 0.1); border-radius: 8px; }
         .player-item .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
         .host-badge { background: #e74c3c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
-        
-        .start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; font-size: 22px !important; padding: 25px !important; margin-top: 20px; animation: pulse 2s infinite; }
+        .start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        
         .chat-box { background: #f5f5f5; border-radius: 15px; padding: 20px; margin: 20px 0; max-height: 200px; display: flex; flex-direction: column; border: 1px solid #e0e0e0; }
         .chat-messages { flex: 1; overflow-y: auto; max-height: 150px; margin-bottom: 15px; text-align: left; font-size: 15px; background: white; padding: 15px; border-radius: 10px; word-break: break-word; }
         .chat-message { padding: 8px 0; border-bottom: 1px solid #eee; }
@@ -58,45 +49,81 @@
         .chat-input { display: flex; gap: 10px; }
         .chat-input input { flex: 1; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; font-size: 15px; }
         .chat-input button { padding: 12px 25px; font-size: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; cursor: pointer; }
-        
-        /* MULTIPLAYER SCOREBOARD */
         .multiplayer-scoreboard { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px; }
         .player-card { background: white; border-radius: 12px; padding: 10px 15px; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid transparent; }
         .player-card.active { border-color: #667eea; background: #f8f9ff; }
         .player-card.out { opacity: 0.5; background: #fee; }
-        .player-card.guessed { border-color: #10b981; background: #f0fff4; }
         .player-card .name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
         .player-card .score { font-size: 20px; font-weight: bold; color: #667eea; }
-        .player-card.you .name::after { content: " (TY)"; color: #667eea; font-size: 12px; }
-        
         .round-badge-container { margin-bottom: 15px; }
         .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
         
         .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
-        .input-group { display: flex; gap: 10px; }
-        input { flex: 1; padding: 18px 25px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 18px; outline: none; }
+        .input-group { display: flex; gap: 10px; position: relative; }
+        input[type="text"] { flex: 1; padding: 18px 25px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 18px; outline: none; }
+        input[type="text"]:focus { border-color: #667eea; }
+        input.shake { animation: shake 0.5s; border-color: #ef4444; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
         button { padding: 18px 35px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 18px; font-weight: 600; cursor: pointer; }
         button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc; }
         button.small { padding: 12px 25px; font-size: 16px; background: #999; }
+        
+        .autocomplete-items { 
+            position: absolute; 
+            border: 1px solid #ddd; 
+            z-index: 99; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            margin-top: 5px;
+            border-radius: 15px; 
+            overflow: hidden; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); 
+            max-height: 200px; 
+            overflow-y: auto; 
+            display: none; 
+            background: white;
+            text-align: left;
+        }
+        .autocomplete-items.active { display: block; }
+        .autocomplete-item { 
+            padding: 15px 25px; 
+            cursor: pointer; 
+            background-color: #fff; 
+            border-bottom: 1px solid #f0f0f0; 
+            font-size: 16px;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
+        .autocomplete-item strong { font-weight: bold; }
+        
         #hint { font-weight: 600; color: #667eea; margin-top: 15px; font-size: 20px; min-height: 50px; line-height: 1.4; }
         .success { color: #10b981; font-size: 22px; font-weight: bold; }
-        .fail { color: #ef4444; } .waiting { color: #f59e0b; }
-        
+        .fail { color: #ef4444; } 
+        .waiting { color: #f59e0b; }
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; z-index: 10000; pointer-events: none; font-size: 16px; }
         .toast.show { opacity: 1; }
+        .hidden { display: none !important; }
         
         #game-over { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; color: white; padding: 20px; }
         #game-over.show { display: flex; }
-        .game-over-box { background: white; color: #333; padding: 40px; border-radius: 25px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-        .final-score { font-size: 48px; font-weight: bold; color: #667eea; margin: 20px 0; }
-        .winners-list { margin: 20px 0; font-size: 24px; }
-        
-        .hidden { display: none !important; }
+        .game-over-box { background: white; color: #333; padding: 40px; border-radius: 25px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .winners-title { font-size: 32px; margin-bottom: 10px; font-weight: bold; color: #333; }
+        .winners-subtitle { font-size: 24px; margin-bottom: 20px; color: #667eea; font-weight: 600; }
+        .scores-list { text-align: left; margin: 20px 0; max-height: 300px; overflow-y: auto; }
+        .score-item { padding: 12px; margin: 8px 0; background: #f8f9ff; border-radius: 10px; display: flex; justify-content: space-between; font-size: 18px; align-items: center; }
+        .score-item.winner { background: #d4edda; border: 2px solid #10b981; font-weight: bold; }
+        .score-item.you { background: #e7e3f8; border: 2px solid #667eea; }
+        .score-rank { font-size: 24px; font-weight: bold; color: #667eea; margin-right: 10px; }
+        .score-name { flex: 1; text-align: left; }
+        .score-points { font-weight: bold; font-size: 20px; color: #333; }
         
         @media (max-width: 768px) {
-          .multiplayer-scoreboard { gap: 5px; }
-          .player-card { min-width: 80px; padding: 8px; }
-          .input-group { flex-direction: column; }
+            .multiplayer-scoreboard { gap: 5px; }
+            .player-card { min-width: 80px; padding: 8px; }
+            .input-group { flex-direction: column; }
+            .code-display { font-size: 28px; letter-spacing: 4px; }
+            .winners-title { font-size: 24px; }
+            .winners-subtitle { font-size: 18px; }
         }
     </style>
 </head>
@@ -106,11 +133,11 @@
 
 <div id="game-over">
     <div class="game-over-box">
-        <h2 style="font-size: 32px; margin-bottom: 10px;">Konec hry!</h2>
-        <div class="winners-list" id="winners-list"></div>
-        <div id="final-scores" style="margin: 20px 0; text-align: left; max-height: 200px; overflow-y: auto;"></div>
-        <button class="start-btn" onclick="game.rematch()">🔄 Nová hra</button>
-        <button class="small" onclick="game.backToMenu()" style="margin-top: 15px;">🏠 Menu</button>
+        <h2 class="winners-title" id="winners-title">Konec hry!</h2>
+        <div class="winners-subtitle" id="winners-subtitle"></div>
+        <div class="scores-list" id="final-scores"></div>
+        <button class="menu-btn start-btn" onclick="game.rematch()" id="rematch-btn" style="margin-top: 10px;">🔄 Nová hra</button>
+        <button class="small" onclick="game.backToMenu()" style="margin-top: 15px;">🏠 Hlavní menu</button>
     </div>
 </div>
 
@@ -145,7 +172,7 @@
                 </div>
                 
                 <button class="menu-btn" onclick="game.startHost()">🎮 Vytvořit hru</button>
-                <button class="menu-btn" onclick="game.showJoin()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🔗 Připojit se</button>
+                <button class="menu-btn" onclick="game.showJoin()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🔗 Připojit se ke hře</button>
             </div>
         </div>
         
@@ -158,11 +185,7 @@
             <div class="code-display" id="room-code" onclick="game.copyLink()">----</div>
             <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Klikni pro zkopírování odkazu</p>
             
-            <div class="player-list" id="lobby-player-list">
-                <div class="player-item you">
-                    <span class="name">Ty <span class="host-badge">HOST</span></span>
-                </div>
-            </div>
+            <div class="player-list" id="lobby-player-list"></div>
             
             <div class="chat-box">
                 <div class="chat-messages" id="host-chat"></div>
@@ -180,7 +203,7 @@
         <div id="join-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
             <div id="join-form">
                 <p style="font-size: 20px; margin-bottom: 15px; font-weight: 600;">Zadej kód a jméno:</p>
-                <input type="text" id="join-code" placeholder="Kód místnosti (např. A3F9K2)" style="width: 100%; margin-bottom: 10px; padding: 20px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;" maxlength="10">
+                <input type="text" id="join-code" placeholder="Kód místnosti" style="width: 100%; margin-bottom: 10px; padding: 20px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;" maxlength="10">
                 <input type="text" id="join-nickname" placeholder="Tvoje jméno" style="width: 100%; margin-bottom: 20px; padding: 15px; font-size: 18px;" maxlength="20">
                 <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 15px;">Připojit se</button>
                 <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
@@ -214,12 +237,12 @@
             <div id="map-loader" class="hidden"><div class="spinner"></div><span>Načítání...</span></div>
         </div>
         <div class="controls" style="max-height: 55vh;">
-            <!-- MULTIPLAYER SCOREBOARD -->
             <div id="mp-scoreboard" class="multiplayer-scoreboard hidden"></div>
             
-            <div id="single-stats" class="stats-row hidden">
-                <div class="stat-box">🏆 <span id="score">0</span></div>
-                <div class="stat-box">🎯 <span id="streak">0</span></div>
+            <div id="single-stats" class="hidden" style="margin-bottom: 15px;">
+                <div class="round-badge-container">
+                    <div class="round-badge">🏆 <span id="score">0</span> | 🎯 <span id="streak">0</span></div>
+                </div>
             </div>
             
             <div class="round-badge-container">
@@ -231,6 +254,7 @@
                     <input type="text" id="guessInput" placeholder="Napiš zemi..." autocomplete="off" disabled>
                     <button onclick="game.makeGuess()" id="guessBtn" disabled>Hádat</button>
                 </div>
+                <div id="autocomplete-list" class="autocomplete-items"></div>
             </div>
             
             <p id="hint">Příprava hry...</p>
@@ -250,6 +274,37 @@ const game = (function() {
         return div.innerHTML;
     }
     
+    function createEl(tag, cls, text) {
+        const el = document.createElement(tag);
+        if (cls) el.className = cls;
+        if (text !== undefined) el.textContent = text;
+        return el;
+    }
+    
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+        try {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            if (type === 'success') {
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            } else {
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            }
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch (e) {}
+    }
+
     let countries = [];
     const socket = io({ transports: ['websocket'] });
     socket.on('init-data', (data) => { countries = data.countries.world || []; });
@@ -267,7 +322,6 @@ const game = (function() {
         zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"]
     };
 
-    // Socket events
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
         state.isHost = true;
@@ -311,10 +365,6 @@ const game = (function() {
         document.getElementById('guest-chat-input').disabled = false;
         document.querySelector('#guest-lobby .chat-input button').disabled = false;
         document.getElementById('join-error').textContent = '';
-        
-        // Přidat chat listener
-        const inp = document.getElementById('guest-chat-input');
-        inp.addEventListener('keypress', (e) => { if (e.key === 'Enter') game.sendChat('guest'); });
     });
 
     socket.on('chat-history', (msgs) => {
@@ -340,14 +390,10 @@ const game = (function() {
         state.totalRounds = data.totalRounds;
         state.finished = false;
         state.attempts = 0;
-        
-        // Update players
         state.players = data.players;
         updateScoreboard();
-        
         document.getElementById('round').textContent = state.currentRound;
         document.getElementById('hint').textContent = `Kolo ${state.currentRound} začíná!`;
-        
         initMap();
         setTimeout(() => {
             setInputEnabled(true);
@@ -358,17 +404,17 @@ const game = (function() {
     socket.on('round-result', (data) => {
         state.finished = true;
         setInputEnabled(false);
-        
         const hint = document.getElementById('hint');
         hint.innerHTML = '';
         
         if (data.winner) {
             hint.appendChild(createEl('span', 'success', `🏆 ${escapeHtml(data.winner)} uhodl zemi! Bylo to ${escapeHtml(data.countryName)}`));
+            playSound('success');
         } else {
             hint.appendChild(createEl('span', 'fail', `Nikdo neuhodl! Bylo to ${escapeHtml(data.countryName)}`));
+            playSound('error');
         }
         
-        // Update scores
         state.players = data.scores.map(s => ({ id: s.id, name: s.name, score: s.score }));
         updateScoreboard();
     });
@@ -380,31 +426,43 @@ const game = (function() {
     });
 
     socket.on('game-over', (data) => {
-        let msg = '';
+        let title, subtitle;
+        
         if (data.isDraw) {
-            msg = 'Remíza!';
-        } else if (data.winners) {
-            if (data.winners.length === 1) {
-                const isMe = data.winners[0].id === state.myId;
-                msg = isMe ? 'Vyhrál jsi! 🎉' : `Vítěz: ${data.winners[0].name}`;
-            } else {
-                msg = 'Vítězové: ' + data.winners.map(w => w.name).join(', ');
-            }
+            title = 'Remíza!';
+            subtitle = 'Vítězové: ' + data.winners.map(w => w.name).join(', ');
+        } else if (data.winners && data.winners.length === 1) {
+            const isMe = data.winners[0].id === state.myId;
+            title = isMe ? '🎉 Vyhrál jsi!' : '🏆 Konec hry';
+            subtitle = isMe ? 'Jsi šampion!' : `Vítěz: ${data.winners[0].name}`;
+        } else {
+            title = 'Konec hry!';
+            subtitle = '';
         }
         
-        document.getElementById('winners-list').textContent = msg;
+        document.getElementById('winners-title').textContent = title;
+        document.getElementById('winners-subtitle').textContent = subtitle;
         
         const scoresDiv = document.getElementById('final-scores');
-        scoresDiv.innerHTML = '<h3 style="margin-bottom: 10px;">Konečné pořadí:</h3>';
+        scoresDiv.innerHTML = '';
+        
         const sorted = [...data.scores].sort((a,b) => b.score - a.score);
         sorted.forEach((p, idx) => {
-            const div = createEl('div', '', `${idx+1}. ${escapeHtml(p.name)}: ${p.score} bodů`);
-            div.style.margin = '5px 0';
-            div.style.fontWeight = p.id === state.myId ? 'bold' : 'normal';
-            div.style.color = p.id === state.myId ? '#667eea' : '#333';
+            const isWinner = data.winners.some(w => w.id === p.id);
+            const isMe = p.id === state.myId;
+            const div = createEl('div', `score-item ${isWinner ? 'winner' : ''} ${isMe ? 'you' : ''}`);
+            
+            const rank = createEl('span', 'score-rank', `${idx + 1}.`);
+            const name = createEl('span', 'score-name', escapeHtml(p.name) + (isMe ? ' (Ty)' : ''));
+            const points = createEl('span', 'score-points', `${p.score} bodů`);
+            
+            div.appendChild(rank);
+            div.appendChild(name);
+            div.appendChild(points);
             scoresDiv.appendChild(div);
         });
         
+        document.getElementById('rematch-btn').style.display = state.isHost ? 'inline-block' : 'none';
         document.getElementById('game-over').classList.add('show');
     });
 
@@ -417,7 +475,6 @@ const game = (function() {
         document.getElementById('join-error').textContent = escapeHtml(msg);
     });
 
-    // Pomocné funkce
     function updateLobbyPlayerList(players, max) {
         const list = document.getElementById('lobby-player-list');
         list.innerHTML = '';
@@ -462,13 +519,6 @@ const game = (function() {
         });
     }
 
-    function createEl(tag, cls, text) {
-        const el = document.createElement(tag);
-        if (cls) el.className = cls;
-        if (text !== undefined) el.textContent = text;
-        return el;
-    }
-
     function showToast(msg) {
         const t = document.getElementById('toast');
         t.textContent = escapeHtml(msg);
@@ -490,7 +540,6 @@ const game = (function() {
         container.scrollTop = container.scrollHeight;
     }
 
-    // Herní funkce
     function showMain() {
         socket.disconnect();
         location.reload();
@@ -501,6 +550,24 @@ const game = (function() {
         document.getElementById('join-panel').classList.remove('hidden');
         document.getElementById('join-code').focus();
     }
+
+    function copyLink() {
+        if (!state.roomCode) return;
+        const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
+        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!'));
+    }
+
+    function setInputEnabled(en) {
+        document.getElementById('guessInput').disabled = !en;
+        document.getElementById('guessBtn').disabled = !en;
+        if (en) { 
+            document.getElementById('guessInput').value = ''; 
+            document.getElementById('guessInput').focus(); 
+        }
+    }
+
+    function showMapLoader() { document.getElementById('map-loader').classList.remove('hidden'); }
+    function hideMapLoader() { document.getElementById('map-loader').classList.add('hidden'); }
 
     function startHost() {
         const continent = document.getElementById('continent-select').value;
@@ -531,12 +598,6 @@ const game = (function() {
         inp.value = '';
     }
 
-    function copyLink() {
-        if (!state.roomCode) return;
-        const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
-        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!'));
-    }
-
     function startMPGame() {
         state.gameMode = 'mp';
         document.getElementById('menu').classList.add('hidden');
@@ -544,6 +605,14 @@ const game = (function() {
         document.getElementById('single-stats').classList.add('hidden');
         document.getElementById('mp-scoreboard').classList.remove('hidden');
         document.getElementById('game-over').classList.remove('show');
+    }
+
+    function initMap() {
+        showMapLoader();
+        if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
+        state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
+        setTimeout(hideMapLoader, 2000);
     }
 
     function startSingle() {
@@ -565,15 +634,6 @@ const game = (function() {
         initMap();
         updateHint();
         setInputEnabled(true);
-    }
-
-    function initMap() {
-        const loader = document.getElementById('map-loader');
-        loader.classList.remove('hidden');
-        if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
-        state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
-        setTimeout(() => loader.classList.add('hidden'), 2000);
     }
 
     function makeGuess() {
@@ -605,11 +665,13 @@ const game = (function() {
         document.getElementById('score').textContent = state.score;
         document.getElementById('streak').textContent = state.streak;
         document.getElementById('hint').innerHTML = `<span class="success">✓ ${state.currentCountry[0]}! +${pts}b</span>`;
+        playSound('success');
         setInputEnabled(false);
         setTimeout(nextSingleRound, 2000);
     }
 
     function handleWrong() {
+        playSound('error');
         state.attempts++;
         if (state.gameMode === 'single') {
             if (state.attempts >= config.maxAttempts) {
@@ -634,12 +696,6 @@ const game = (function() {
         }
     }
 
-    function setInputEnabled(en) {
-        document.getElementById('guessInput').disabled = !en;
-        document.getElementById('guessBtn').disabled = !en;
-        if (en) { document.getElementById('guessInput').value = ''; document.getElementById('guessInput').focus(); }
-    }
-
     function updateHint() {
         document.getElementById('hint').textContent = `Pokus ${state.attempts + 1}/${config.maxAttempts} | ${config.zoomLabels[state.attempts]}`;
     }
@@ -656,14 +712,64 @@ const game = (function() {
         } else if (state.gameMode === 'single') {
             startSingle();
             document.getElementById('game-over').classList.remove('show');
-        } else {
-            showToast('Čekání na hosta...');
         }
     }
 
     function backToMenu() {
         socket.disconnect();
         location.href = location.pathname;
+    }
+
+    // AUTOCOMPLETE
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function handleAutocomplete(e) {
+        const val = e.target.value;
+        const list = document.getElementById('autocomplete-list');
+        list.innerHTML = '';
+        
+        if (!val || !countries.length) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const matches = countries.filter(c => norm(c[0]).includes(norm(val))).slice(0, 5);
+        
+        if (matches.length === 0) {
+            list.classList.remove('active');
+            return;
+        }
+        
+        const safeVal = escapeRegex(val);
+        const regex = new RegExp(`(${safeVal})`, 'gi');
+        
+        matches.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            
+            const parts = c[0].split(regex);
+            parts.forEach(part => {
+                if (part.toLowerCase() === val.toLowerCase()) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = part;
+                    div.appendChild(strong);
+                } else {
+                    div.appendChild(document.createTextNode(part));
+                }
+            });
+            
+            div.onclick = () => {
+                document.getElementById('guessInput').value = c[0];
+                list.classList.remove('active');
+                makeGuess();
+            };
+            list.appendChild(div);
+        });
+        
+        list.classList.add('active');
     }
 
     // Event listeners
@@ -673,15 +779,45 @@ const game = (function() {
         if (room) {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
-            document.getElementById('join-code').value = room.slice(0,10);
+            document.getElementById('join-code').value = room.slice(0, 10);
         }
         
-        document.getElementById('host-chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat('host'); });
-        document.getElementById('guessInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') makeGuess(); });
+        document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('host');
+        });
+        
+        document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChat('guest');
+        });
+        
+        document.getElementById('guessInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') makeGuess();
+        });
+        
+        document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-wrapper')) {
+                document.getElementById('autocomplete-list').classList.remove('active');
+            }
+        });
     });
 
-    return { startSingle, startHost, showJoin, joinGame, startGameFromLobby, sendChat, copyLink, makeGuess, rematch, backToMenu, showMain };
+    return {
+        startSingle,
+        startHost,
+        showJoin,
+        joinGame,
+        startGameFromLobby,
+        sendChat,
+        copyLink,
+        makeGuess,
+        rematch,
+        backToMenu,
+        showMain
+    };
 })();
 </script>
 </body>
 </html>
+
