@@ -10,7 +10,369 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
-        #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        
+        /* NAVIGACE */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+            padding: 0 20px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .nav-brand {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .nav-link {
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #555;
+            font-weight: 600;
+            border-radius: 25px;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #667eea;
+            padding: 10px;
+        }
+        
+        .content-section { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* FULL WIDTH SEKCE */
+        .full-width-section {
+            width: 100vw;
+            margin-left: calc(-50vw + 50%);
+            padding: 100px 20px 60px;
+            min-height: calc(100vh - 70px);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .full-width-content {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .full-width-section h1 {
+            color: white;
+            font-size: clamp(36px, 8vw, 56px);
+            margin-bottom: 15px;
+            text-align: center;
+            -webkit-text-fill-color: white;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .full-width-section .subtitle {
+            color: rgba(255,255,255,0.95);
+            font-size: clamp(18px, 4vw, 24px);
+            margin-bottom: 50px;
+            text-align: center;
+            font-weight: 300;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .wide-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        /* INFO KARTY */
+        .info-card {
+            background: rgba(255,255,255,0.98);
+            border-radius: 24px;
+            padding: 35px 25px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .info-card:hover { transform: translateY(-8px); border-color: rgba(102, 126, 234, 0.3); }
+        
+        .info-card h2 {
+            font-size: 26px;
+            color: #333;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+        
+        .info-card h2 span { font-size: 36px; }
+        
+        .info-card ul {
+            list-style: none;
+            padding: 0;
+            color: #555;
+            font-size: 17px;
+            line-height: 2;
+            text-align: center;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .info-card li {
+            margin-bottom: 15px;
+            padding: 0;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .info-card li:before {
+            content: "✓";
+            color: #667eea;
+            font-weight: bold;
+            font-size: 22px;
+            position: static;
+            margin: 0;
+        }
+        
+        .info-card strong { color: #667eea; font-weight: 700; }
+        
+        /* SEKCE VÝSLEDKY - HIGHSCORE */
+        .results-container {
+            background: rgba(255,255,255,0.98);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .results-title {
+            font-size: 42px;
+            color: #333;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            font-weight: 800;
+        }
+        
+        .results-title span { font-size: 50px; }
+        
+        .highscore-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+        
+        .highscore-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+            gap: 20px;
+        }
+        
+        .highscore-row:hover { transform: scale(1.02); }
+        
+        .highscore-row.top-1 { background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333; }
+        .highscore-row.top-2 { background: linear-gradient(135deg, #c0c0c0 0%, #e0e0e0 100%); color: #333; }
+        .highscore-row.top-3 { background: linear-gradient(135deg, #cd7f32 0%, #daa520 100%); color: white; }
+        
+        .highscore-rank {
+            font-size: 32px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .highscore-name {
+            flex: 1;
+            font-size: 20px;
+            font-weight: 600;
+            text-align: left;
+            padding: 0 20px;
+        }
+        
+        .highscore-points {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 8px 20px;
+            border-radius: 25px;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .highscore-row.top-1 .highscore-points,
+        .highscore-row.top-2 .highscore-points,
+        .highscore-row.top-3 .highscore-points {
+            background: rgba(255,255,255,0.3);
+            color: inherit;
+        }
+        
+        .highscore-date {
+            font-size: 14px;
+            color: #888;
+            min-width: 80px;
+            text-align: right;
+        }
+        
+        .highscore-row.top-1 .highscore-date,
+        .highscore-row.top-2 .highscore-date,
+        .highscore-row.top-3 .highscore-date { color: rgba(0,0,0,0.6); }
+        
+        .no-scores-big {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 20px;
+            font-style: italic;
+        }
+        
+        .no-scores-big-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .clear-results-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .clear-results-btn:hover { background: #dc2626; transform: translateY(-2px); }
+        
+        .cta-button-wide {
+            margin-top: 50px;
+            padding: 22px 60px;
+            font-size: 22px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        
+        .cta-button-wide:hover { transform: scale(1.05) translateY(-2px); box-shadow: 0 15px 50px rgba(0,0,0,0.4); }
+        
+        /* MOBILNÍ OPTIMALIZACE PRO VÝSLEDKY */
+        @media (max-width: 768px) {
+            .full-width-section { padding: 80px 15px 40px; }
+            
+            .wide-menu-grid { grid-template-columns: 1fr; gap: 20px; }
+            
+            .info-card { padding: 25px 20px; }
+            .info-card h2 { font-size: 22px; }
+            .info-card h2 span { font-size: 28px; }
+            .info-card ul { font-size: 16px; }
+            
+            .results-container { padding: 25px 15px; border-radius: 20px; }
+            .results-title { font-size: 28px; margin-bottom: 20px; }
+            .results-title span { font-size: 36px; }
+            
+            .highscore-row { padding: 12px 15px; gap: 10px; }
+            .highscore-rank { font-size: 24px; min-width: 35px; }
+            .highscore-name { font-size: 16px; padding: 0 10px; }
+            .highscore-points { font-size: 18px; padding: 6px 12px; min-width: 80px; }
+            .highscore-date { display: none; }
+            
+            .cta-button-wide { width: 90%; max-width: 350px; padding: 18px; font-size: 18px; }
+        }
+        
+        @media (max-width: 480px) {
+            .full-width-section h1 { font-size: 32px; }
+            .full-width-section .subtitle { font-size: 16px; margin-bottom: 30px; }
+            .results-title { font-size: 24px; }
+            .highscore-name { font-size: 15px; }
+            .highscore-points { font-size: 16px; }
+        }
+        
+        /* ZÁKLADNÍ STYLY PRO HRU */
+        #game-container { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 90px 20px 20px; 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            width: 100%; 
+        }
+        
         #map { flex: 1; background: #242424; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 300px; position: relative; z-index: 1; }
         #map-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 50px; font-size: 18px; z-index: 1000; display: flex; align-items: center; gap: 15px; }
         .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
@@ -22,19 +384,11 @@
         .subtitle { color: #666; font-size: 18px; margin-bottom: 20px; }
         
         .menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; max-width: 800px; margin: 0 auto; }
-        @media (min-width: 768px) {
-            .menu-grid { grid-template-columns: 1fr 1fr; }
-        }
+        @media (min-width: 768px) { .menu-grid { grid-template-columns: 1fr 1fr; } }
         
         .menu-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: left; }
         .menu-section h2 { font-size: 20px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
         .menu-section h2 span { font-size: 24px; }
-        
-        .how-to-play { background: #f8f9ff; border-left: 4px solid #667eea; }
-        .how-to-play ul { list-style: none; padding: 0; color: #555; font-size: 15px; line-height: 1.6; }
-        .how-to-play li { margin-bottom: 10px; padding-left: 20px; position: relative; }
-        .how-to-play li:before { content: "→"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
-        .how-to-play strong { color: #667eea; }
         
         .highscore-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .highscore-section h2 { color: white; }
@@ -133,167 +487,50 @@
         .rematch-status { font-size: 16px; color: #666; margin: 10px 0; font-weight: 600; }
         .rematch-status.ready { color: #10b981; }
 
-        /* === MOBILNÍ OPTIMALIZACE === */
+        /* MOBILNÍ OPTIMALIZACE */
         @media (max-width: 768px) {
-            #game-container { padding: 10px; gap: 10px; }
-            
-            /* Menu - větší tlačítka pro prsty */
-            .menu-btn { 
-                padding: 22px 20px; 
-                font-size: 20px; 
-                margin-bottom: 8px;
-                min-height: 56px; /* Apple HIG */
-            }
-            
-            /* Menší padding v menu sekcích */
+            .top-nav { height: 60px; padding: 0 15px; }
+            .nav-brand { font-size: 20px; }
+            .nav-links { position: fixed; top: 60px; left: 0; right: 0; background: rgba(255,255,255,0.98); flex-direction: column; padding: 20px; gap: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); transform: translateY(-150%); transition: transform 0.3s; z-index: 999; }
+            .nav-links.active { transform: translateY(0); }
+            .nav-link { width: 100%; text-align: center; padding: 15px; }
+            .mobile-menu-btn { display: block; }
+            #game-container { padding: 70px 10px 10px; gap: 10px; }
+            .menu-btn { padding: 22px 20px; font-size: 20px; margin-bottom: 8px; min-height: 56px; }
             .menu-section { padding: 15px; margin-bottom: 10px; }
             .menu-section h2 { font-size: 18px; margin-bottom: 10px; }
-            
-            /* Zmenšit text v návodu na mobilu */
-            .how-to-play ul { font-size: 14px; line-height: 1.5; }
-            .how-to-play li { margin-bottom: 8px; padding-left: 15px; }
-            
-            /* Highscore kompaktnější */
             .highscore-item { padding: 6px; font-size: 14px; }
-            
-            /* Selecty větší pro touch */
-            .continent-select, .player-count-select {
-                padding: 15px;
-                font-size: 16px; /* Zabrání zoomu na iOS */
-                min-height: 48px;
-            }
-            
-            /* Hra - mapa větší na mobilu */
-            #map { 
-                min-height: 45vh; 
-                border-radius: 15px;
-            }
-            
-            /* Ovládací panel */
-            .controls { 
-                padding: 15px; 
-                border-radius: 15px;
-                max-height: 45vh;
-            }
-            
-            /* Inputy větší pro mobil */
-            input[type="text"] { 
-                padding: 18px 25px; 
-                font-size: 18px; /* Zabrání iOS zoomu */
-                min-height: 48px;
-            }
-            
-            /* Tlačítko Hádat větší */
-            button:not(.menu-btn):not(.small) {
-                padding: 18px 25px;
-                font-size: 18px;
-                min-width: 100px;
-            }
-            
-            /* Autocomplete pro prsty */
-            .autocomplete-item { 
-                padding: 18px 25px; 
-                font-size: 18px; 
-                min-height: 48px;
-                display: flex;
-                align-items: center;
-            }
-            
-            /* Skóre vedle sebe na mobilu */
-            #single-stats div {
-                display: flex;
-                justify-content: space-around;
-                flex-wrap: wrap;
-                gap: 5px;
-            }
-            
-            .timer-badge { 
-                font-size: 32px; 
-                padding: 10px 20px;
-            }
-            
-            /* Lobby na mobilu */
-            #host-panel, #join-panel {
-                padding: 0 5px;
-            }
-            
-            .code-display { 
-                font-size: 28px; 
-                letter-spacing: 4px; 
-                padding: 15px;
-            }
-            
-            /* Chat menší v lobby */
-            .chat-box { 
-                max-height: 150px; 
-                margin: 10px 0;
-            }
+            .continent-select, .player-count-select { padding: 15px; font-size: 16px; min-height: 48px; }
+            #map { min-height: 45vh; border-radius: 15px; }
+            .controls { padding: 15px; border-radius: 15px; max-height: 45vh; }
+            input[type="text"] { padding: 18px 25px; font-size: 18px; min-height: 48px; }
+            button:not(.menu-btn):not(.small) { padding: 18px 25px; font-size: 18px; min-width: 100px; }
+            .autocomplete-item { padding: 18px 25px; font-size: 18px; min-height: 48px; display: flex; align-items: center; }
+            .timer-badge { font-size: 32px; padding: 10px 20px; }
+            #host-panel, #join-panel { padding: 0 5px; }
+            .code-display { font-size: 28px; letter-spacing: 4px; padding: 15px; }
+            .chat-box { max-height: 150px; margin: 10px 0; }
             .chat-messages { max-height: 100px; }
-            
-            /* Game Over přes celou obrazovku na mobilu */
-            .game-over-box {
-                padding: 25px 20px;
-                margin: 10px;
-                max-height: 95vh;
-            }
-            
+            .game-over-box { padding: 25px 20px; margin: 10px; max-height: 95vh; }
             .winners-title { font-size: 24px; }
             .winners-subtitle { font-size: 18px; }
-            
-            /* Tlačítka v game over větší */
-            .game-over-box .menu-btn {
-                padding: 20px;
-                font-size: 20px;
-            }
-            
-            /* Toast nižší na mobilu (neblokuje horní lištu) */
-            .toast {
-                bottom: 80px;
-                font-size: 15px;
-                padding: 12px 25px;
-                max-width: 90%;
-                text-align: center;
-            }
-            
-            /* Scoreboard kompaktnější */
-            .player-card {
-                padding: 6px 10px;
-                min-width: 75px;
-            }
+            .game-over-box .menu-btn { padding: 20px; font-size: 20px; }
+            .toast { bottom: 80px; font-size: 15px; padding: 12px 25px; max-width: 90%; text-align: center; }
+            .player-card { padding: 6px 10px; min-width: 75px; }
             .player-card .name { font-size: 13px; }
             .player-card .score { font-size: 16px; }
-            
-            /* Hint menší */
-            #hint { 
-                font-size: 16px; 
-                margin-top: 10px;
-                min-height: 40px;
-            }
-            
-            /* Tlačítko zpět větší */
-            button.small {
-                padding: 15px 20px;
-                font-size: 16px;
-                margin-top: 15px;
-            }
+            #hint { font-size: 16px; margin-top: 10px; min-height: 40px; }
+            button.small { padding: 15px 20px; font-size: 16px; margin-top: 15px; }
         }
         
-        /* Extra malé mobily */
         @media (max-width: 380px) {
             h1 { font-size: 24px; }
             .subtitle { font-size: 16px; }
-            
-            .menu-btn { 
-                padding: 18px 15px; 
-                font-size: 18px; 
-            }
-            
+            .menu-btn { padding: 18px 15px; font-size: 18px; }
             .code-display { font-size: 24px; letter-spacing: 2px; }
-            
             .timer-badge { font-size: 28px; }
         }
         
-        /* Landscape orientace na mobilu */
         @media (max-width: 768px) and (orientation: landscape) {
             #map { min-height: 60vh; }
             .controls { max-height: 35vh; }
@@ -301,15 +538,11 @@
             .menu-section { flex: 1; font-size: 14px; }
         }
         
-        /* iPhone X+ notch safe area */
         @supports (padding-bottom: env(safe-area-inset-bottom)) {
             @media (max-width: 768px) {
-                #game-container { 
-                    padding-bottom: calc(10px + env(safe-area-inset-bottom)); 
-                }
-                .toast {
-                    bottom: calc(20px + env(safe-area-inset-bottom));
-                }
+                #game-container { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+                .full-width-section { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+                .toast { bottom: calc(20px + env(safe-area-inset-bottom)); }
             }
         }
     </style>
@@ -317,6 +550,19 @@
 <body>
 
 <div id="toast" class="toast"></div>
+
+<nav class="top-nav" id="navbar">
+    <div class="nav-brand" onclick="game.showSection(null, 'play')">
+        <span>🌍</span>
+        <span>GeoGuessr</span>
+    </div>
+    <button class="mobile-menu-btn" onclick="game.toggleMobileMenu()">☰</button>
+    <div class="nav-links" id="nav-links">
+        <a href="#" class="nav-link" onclick="game.showSection(event, 'info')" id="nav-info-link">Informace</a>
+        <a href="#" class="nav-link" onclick="game.showSection(event, 'results')" id="nav-results-link">Výsledky</a>
+        <a href="#" class="nav-link active" onclick="game.showSection(event, 'play')" id="nav-play-link">Hrát</a>
+    </div>
+</nav>
 
 <div id="game-over">
     <div class="game-over-box">
@@ -329,26 +575,82 @@
     </div>
 </div>
 
+<!-- SEKCE INFORMACE - VŠE CENTROVANÉ -->
+<div id="section-info" class="full-width-section content-section hidden">
+    <div class="full-width-content">
+        <h1>🌍 O hře GeoGuessr</h1>
+        <p class="subtitle">Zábavná geografická hra pro celý svět</p>
+        
+        <div class="wide-menu-grid">
+            <div class="info-card">
+                <h2><span>🎯</span> Cíl hry</h2>
+                <ul>
+                    <li>Trénink zeměpisu a poznávání světa</li>
+                    <li>Uhodni zemi podle zobrazení na mapě</li>
+                    <li>Více než <strong>190 zemí</strong> celého světa</li>
+                    <li>Různé herní módy pro jednoho i více hráčů</li>
+                </ul>
+            </div>
+            
+            <div class="info-card">
+                <h2><span>🎮</span> Herní módy</h2>
+                <ul>
+                    <li><strong>Single Player:</strong> Hraj sám na čas</li>
+                    <li><strong>Multiplayer:</strong> Soutěž s přáteli (2-8 hráčů)</li>
+                    <li><strong>Kontinenty:</strong> Zaměř se na konkrétní část světa</li>
+                    <li><strong>Žebříček:</strong> Soutěž o nejlepší skóre</li>
+                </ul>
+            </div>
+            
+            <div class="info-card">
+                <h2><span>⭐</span> Bodování</h2>
+                <ul>
+                    <li><strong>Single:</strong> Až 50 bodů za zemi</li>
+                    <li><strong>Multiplayer:</strong> 1 bod za vítězné kolo</li>
+                    <li><strong>Série:</strong> Sleduj svou úspěšnost</li>
+                    <li><strong>Čas:</strong> 5 minut v singleplayeru</li>
+                </ul>
+            </div>
+            
+            <div class="info-card">
+                <h2><span>🗺️</span> Vlastnosti</h2>
+                <ul>
+                    <li>Interaktivní mapy s postupným zoomem</li>
+                    <li>Chat v multiplayeru</li>
+                    <li>Ukládání nejlepších skóre</li>
+                    <li>Funguje na PC i mobilech</li>
+                </ul>
+            </div>
+        </div>
+        
+        <button onclick="game.showSection(event, 'play')" class="cta-button-wide">🎮 Začít hrát</button>
+    </div>
+</div>
+
+<!-- NOVÁ SEKCE VÝSLEDKY - HIGHSCORE TABULKA -->
+<div id="section-results" class="full-width-section content-section hidden">
+    <div class="full-width-content">
+        <div class="results-container">
+            <h2 class="results-title"><span>🏆</span> Nejlepší skóre</h2>
+            <div id="highscore-results-list">
+                <div class="no-scores-big">
+                    <span class="no-scores-big-icon">🎮</span>
+                    Zatím žádné skóre.<br>Zahrej si singleplayer a získej místo v žebříčku!
+                </div>
+            </div>
+            <button class="clear-results-btn hidden" id="clear-results-btn" onclick="game.clearHighScores()">Smazat všechna skóre</button>
+        </div>
+        
+        <button onclick="game.showSection(event, 'play')" class="cta-button-wide">🎮 Hrát znovu</button>
+    </div>
+</div>
+
 <div id="game-container">
-    <!-- HLAVNÍ MENU S TUTORIÁLEM A HIGH SCORE -->
-    <div id="menu" class="controls">
+    <div id="menu" class="controls content-section">
         <h1>🌍 GeoGuessr</h1>
         <p class="subtitle">Poznáš zemi podle mapy?</p>
         
         <div class="menu-grid">
-            <!-- Jak hrát -->
-            <div class="menu-section how-to-play">
-                <h2><span>📖</span> Jak hrát?</h2>
-                <ul>
-                    <li><strong>Single Player:</strong> Máš 5 minut na uhodnutí co nejvíce zemí. Za každou zemi získáš body podle rychlosti (50 bodů za 1. pokus).</li>
-                    <li><strong>Multiplayer:</strong> Hraje 2-8 hráčů. Kdo první napíše správně zemi, vyhrává kolo a získává bod.</li>
-                    <li><strong>Nápověda:</strong> S každým špatným pokusem se mapa oddálí a ukáže větší oblast.</li>
-                    <li><strong>Tipy:</strong> Piš s diakritikou (např. "Česko") nebo anglicky ("Czechia").</li>
-                    <li><strong>Výhra:</strong> V multiplayeru vyhrává hráč s nejvíce body po 5 kolech.</li>
-                </ul>
-            </div>
-            
-            <!-- Nejlepší skóre -->
             <div class="menu-section highscore-section">
                 <h2><span>🏆</span> Nejlepší skóre</h2>
                 <div class="highscore-list" id="highscore-list">
@@ -356,11 +658,15 @@
                 </div>
                 <button class="clear-scores" onclick="game.clearHighScores()" id="clear-scores-btn" style="display:none;">Smazat historii</button>
             </div>
+            
+            <div class="menu-section" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <h2 style="color: white;"><span>🚀</span> Rychlý start</h2>
+                <p style="margin-bottom: 15px; line-height: 1.5;">Vyber si rychle herní režim a začni hrát ihned.</p>
+                <button onclick="game.startSingle()" class="menu-btn single" style="margin-bottom: 10px; background: white; color: #667eea;">👤 Single Player (5 min)</button>
+            </div>
         </div>
         
         <div class="menu" style="margin-top: 20px;">
-            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player (5 min)</button>
-            
             <div class="mp-section">
                 <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;">👥 Multiplayer</p>
                 
@@ -387,7 +693,6 @@
             </div>
         </div>
         
-        <!-- HOST LOBBY -->
         <div id="host-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
             <div id="host-lobby-info" class="lobby-info waiting">
                 Čekání na hráče... (<span id="player-count">1</span>/<span id="max-count">4</span>)
@@ -407,17 +712,16 @@
             </div>
             
             <button id="start-game-btn" class="menu-btn start-btn hidden" onclick="game.startGameFromLobby()">▶️ SPUSTIT HRU</button>
-            <button onclick="game.showMain()" class="small" style="margin-top: 15px; width: 100%;">Zrušit</button>
+            <button onclick="game.cancelLobby()" class="small" style="margin-top: 15px; width: 100%;">Zrušit</button>
         </div>
         
-        <!-- JOIN LOBBY -->
         <div id="join-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
             <div id="join-form">
                 <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;">Zadej kód a jméno:</p>
                 <input type="text" id="join-code" placeholder="KÓD MÍSTNOSTI" style="width: 100%; margin-bottom: 10px; padding: 15px; text-align: center; font-size: 20px; letter-spacing: 2px; font-weight: bold; text-transform: uppercase;" maxlength="10">
                 <input type="text" id="join-nickname" placeholder="Tvoje jméno (max 20 znaků)" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 16px;" maxlength="20">
                 <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 10px; padding: 15px;">Připojit se</button>
-                <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
+                <button onclick="game.cancelJoin()" class="small" style="width: 100%;">Zpět</button>
                 <p id="join-error" style="color: #e74c3c; margin-top: 10px; min-height: 20px; font-size: 14px;"></p>
             </div>
             
@@ -436,12 +740,11 @@
                     </div>
                 </div>
                 
-                <button onclick="game.showMain()" class="small" style="width: 100%;">Odpojit se</button>
+                <button onclick="game.cancelJoin()" class="small" style="width: 100%;">Odpojit se</button>
             </div>
         </div>
     </div>
 
-    <!-- GAME PANEL -->
     <div id="game-panel" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
         <div class="map-container">
             <div id="map"></div>
@@ -484,7 +787,6 @@ const game = (function() {
     const HIGHSCORE_KEY = 'geoguessr_highscores';
     const MAX_HIGHSCORES = 10;
     
-    // Detekce mobilního zařízení pro speciální chování
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
     
     function escapeHtml(text) {
@@ -536,32 +838,76 @@ const game = (function() {
     }
     
     function updateHighScoreDisplay() {
-        const container = document.getElementById('highscore-list');
         const scores = loadHighScores();
+        
+        // Menu highscore
+        const container = document.getElementById('highscore-list');
         const clearBtn = document.getElementById('clear-scores-btn');
         
+        // Results section highscore
+        const containerResults = document.getElementById('highscore-results-list');
+        const clearBtnResults = document.getElementById('clear-results-btn');
+        
         if (scores.length === 0) {
-            container.innerHTML = '<div class="no-scores">Zatím žádné skóre. Zahraj si singleplayer!</div>';
-            clearBtn.style.display = 'none';
+            if (container) container.innerHTML = '<div class="no-scores">Zatím žádné skóre. Zahraj si singleplayer!</div>';
+            if (clearBtn) clearBtn.style.display = 'none';
+            
+            if (containerResults) {
+                containerResults.innerHTML = `
+                    <div class="no-scores-big">
+                        <span class="no-scores-big-icon">🎮</span>
+                        Zatím žádné skóre.<br>Zahrej si singleplayer a získej místo v žebříčku!
+                    </div>
+                `;
+            }
+            if (clearBtnResults) clearBtnResults.classList.add('hidden');
             return;
         }
         
-        clearBtn.style.display = 'block';
-        container.innerHTML = '';
+        if (clearBtn) clearBtn.style.display = 'block';
+        if (clearBtnResults) clearBtnResults.classList.remove('hidden');
         
-        scores.forEach((s, index) => {
-            const div = createEl('div', 'highscore-item');
-            const rank = createEl('span', 'rank', `${index + 1}.`);
-            const name = createEl('span', 'name', escapeHtml(s.name));
-            const points = createEl('span', 'score', `${s.score}b`);
-            const date = createEl('span', 'date', formatDate(new Date(s.date)));
-            
-            div.appendChild(rank);
-            div.appendChild(name);
-            div.appendChild(date);
-            div.appendChild(points);
-            container.appendChild(div);
-        });
+        // Render pro menu
+        if (container) {
+            container.innerHTML = '';
+            scores.forEach((s, index) => {
+                const div = createEl('div', 'highscore-item');
+                const rank = createEl('span', 'rank', `${index + 1}.`);
+                const name = createEl('span', 'name', escapeHtml(s.name));
+                const points = createEl('span', 'score', `${s.score}b`);
+                const date = createEl('span', 'date', formatDate(new Date(s.date)));
+                
+                div.appendChild(rank);
+                div.appendChild(name);
+                div.appendChild(date);
+                div.appendChild(points);
+                container.appendChild(div);
+            });
+        }
+        
+        // Render pro results sekci - krásné řádky
+        if (containerResults) {
+            containerResults.innerHTML = '';
+            scores.forEach((s, index) => {
+                let rowClass = 'highscore-row';
+                if (index === 0) rowClass += ' top-1';
+                else if (index === 1) rowClass += ' top-2';
+                else if (index === 2) rowClass += ' top-3';
+                
+                const row = createEl('div', rowClass);
+                
+                const rank = createEl('div', 'highscore-rank', `${index + 1}.`);
+                const name = createEl('div', 'highscore-name', escapeHtml(s.name));
+                const points = createEl('div', 'highscore-points', `${s.score}b`);
+                const date = createEl('div', 'highscore-date', formatDate(new Date(s.date)));
+                
+                row.appendChild(rank);
+                row.appendChild(name);
+                row.appendChild(points);
+                row.appendChild(date);
+                containerResults.appendChild(row);
+            });
+        }
     }
     
     function clearHighScores() {
@@ -626,7 +972,6 @@ const game = (function() {
         }
     });
 
-    // MOBIL: Zabránění zoomu při double tap na inputy
     if (isMobile) {
         document.addEventListener('dblclick', function(event) {
             if (event.target.tagName === 'INPUT') {
@@ -643,11 +988,10 @@ const game = (function() {
         document.getElementById('room-code').textContent = data.code;
         document.getElementById('max-count').textContent = data.maxPlayers;
         document.querySelector('.menu-grid').classList.add('hidden');
-        document.querySelector('.menu').classList.add('hidden');
+        document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
         updateLobbyPlayerList([{ id: socket.id, name: 'Host', isHost: true }], state.maxPlayers);
         
-        // MOBIL: Automaticky zkopírovat kód na mobilu pro snadné sdílení
         if (isMobile && navigator.clipboard) {
             setTimeout(() => {
                 copyLink();
@@ -682,7 +1026,7 @@ const game = (function() {
         state.isHost = false;
         state.myId = data.yourId;
         document.querySelector('.menu-grid').classList.add('hidden');
-        document.querySelector('.menu').classList.add('hidden');
+        document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('guest-lobby').classList.remove('hidden');
         document.getElementById('guest-chat-input').disabled = false;
@@ -704,6 +1048,7 @@ const game = (function() {
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('host-panel').classList.add('hidden');
         document.getElementById('join-panel').classList.add('hidden');
+        document.getElementById('navbar').classList.add('hidden');
         state.totalRounds = data.totalRounds || 5;
         document.getElementById('total-rounds').textContent = state.totalRounds;
         state.rematchVoted = false;
@@ -712,7 +1057,6 @@ const game = (function() {
         document.getElementById('rematch-status').classList.add('hidden');
         startMPGame();
         
-        // MOBIL: Na mobilu skrýt adresní řádu pro větší prostor
         if (isMobile && document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(e => {});
         }
@@ -760,7 +1104,6 @@ const game = (function() {
     });
 
     socket.on('game-over', (data) => {
-        // MOBIL: Ukončit fullscreen pokud je aktivní
         if (isMobile && document.fullscreenElement) {
             document.exitFullscreen().catch(e => {});
         }
@@ -902,14 +1245,27 @@ const game = (function() {
         container.scrollTop = container.scrollHeight;
     }
 
-    function showMain() {
-        socket.disconnect();
-        location.reload();
+    function cancelLobby() {
+        document.getElementById('host-panel').classList.add('hidden');
+        document.querySelector('.menu-grid').classList.remove('hidden');
+        document.querySelector('.menu > .mp-section').classList.remove('hidden');
+        socket.emit('leave-room');
+    }
+
+    function cancelJoin() {
+        document.getElementById('join-panel').classList.add('hidden');
+        document.getElementById('join-form').classList.remove('hidden');
+        document.getElementById('guest-lobby').classList.add('hidden');
+        document.getElementById('join-code').value = '';
+        document.getElementById('join-error').textContent = '';
+        document.querySelector('.menu-grid').classList.remove('hidden');
+        document.querySelector('.menu > .mp-section').classList.remove('hidden');
+        socket.emit('leave-room');
     }
 
     function showJoin() {
         document.querySelector('.menu-grid').classList.add('hidden');
-        document.querySelector('.menu').classList.add('hidden');
+        document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('join-panel').classList.remove('hidden');
         document.getElementById('join-code').focus();
     }
@@ -918,7 +1274,6 @@ const game = (function() {
         if (!state.roomCode) return;
         const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
         navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!')).catch(() => {
-            // Fallback pro mobil
             showToast('Kód: ' + state.roomCode);
         });
     }
@@ -999,6 +1354,7 @@ const game = (function() {
         state.finished = false;
         
         document.getElementById('menu').classList.add('hidden');
+        document.getElementById('navbar').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.remove('hidden');
         document.getElementById('mp-scoreboard').classList.add('hidden');
@@ -1012,7 +1368,6 @@ const game = (function() {
         startTimer();
         nextSingleRound();
         
-        // MOBIL: Fullscreen pro lepší zážitek
         if (isMobile && document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(e => {});
         }
@@ -1020,16 +1375,11 @@ const game = (function() {
 
     function startTimer() {
         if (state.timerInterval) clearInterval(state.timerInterval);
-        
         updateTimerDisplay();
-        
         state.timerInterval = setInterval(() => {
             state.timeLeft--;
             updateTimerDisplay();
-            
-            if (state.timeLeft <= 0) {
-                endSingleGame();
-            }
+            if (state.timeLeft <= 0) endSingleGame();
         }, 1000);
     }
 
@@ -1038,7 +1388,6 @@ const game = (function() {
         const seconds = state.timeLeft % 60;
         const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         document.getElementById('timer').textContent = display;
-        
         if (state.timeLeft < 30) {
             document.getElementById('timer').style.background = '#e74c3c';
         } else {
@@ -1050,18 +1399,13 @@ const game = (function() {
         clearInterval(state.timerInterval);
         state.finished = true;
         setInputEnabled(false);
-        
-        // MOBIL: Ukončit fullscreen
         if (isMobile && document.fullscreenElement) {
             document.exitFullscreen().catch(e => {});
         }
-        
         const playerName = prompt(`Konec hry! Získal jsi ${state.score} bodů.\nZadej svoje jméno pro tabulku nejlepších:`) || 'Hráč';
         saveHighScore(playerName, state.score, state.countriesGuessed);
-        
         document.getElementById('winners-title').textContent = '⏰ Čas vypršel!';
         document.getElementById('winners-subtitle').textContent = `Uhodl jsi ${state.countriesGuessed} zemí a získal ${state.score} bodů!`;
-        
         const scoresDiv = document.getElementById('final-scores');
         scoresDiv.innerHTML = `
             <div class="score-item you" style="justify-content: center; flex-direction: column; text-align: center; gap: 10px;">
@@ -1069,23 +1413,19 @@ const game = (function() {
                 <div style="color: #666;">${state.countriesGuessed} zemí | Série: ${state.streak}</div>
             </div>
         `;
-        
         document.getElementById('rematch-btn').style.display = 'inline-block';
         document.getElementById('rematch-btn').textContent = '🔄 Hrát znovu';
         document.getElementById('rematch-btn').disabled = false;
         document.getElementById('rematch-status').classList.add('hidden');
-        
         document.getElementById('game-over').classList.add('show');
     }
 
     function nextSingleRound() {
         if (state.timeLeft <= 0 || state.finished) return;
-        
         let newCountry;
         do {
             newCountry = countries[Math.floor(Math.random() * countries.length)];
         } while (state.currentCountry && newCountry[0] === state.currentCountry[0] && countries.length > 1);
-        
         state.currentCountry = newCountry;
         state.attempts = 0;
         initMap();
@@ -1098,17 +1438,13 @@ const game = (function() {
         state.lastGuess = Date.now();
         state.guessCooldown = true;
         setTimeout(() => state.guessCooldown = false, 300);
-        
         if (state.gameMode === 'mp' && state.finished) return;
         if (state.gameMode === 'single' && state.timeLeft <= 0) return;
-        
         const inp = document.getElementById('guessInput');
         const val = inp.value.trim();
         if (!val) { inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 500); return; }
-
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const correct = norm(val) === norm(state.currentCountry[0]) || state.currentCountry[3].some(a => norm(val) === norm(a));
-        
         if (correct) {
             if (state.gameMode === 'mp') {
                 socket.emit('correct-guess');
@@ -1180,12 +1516,9 @@ const game = (function() {
 
     function backToMenu() {
         if (state.timerInterval) clearInterval(state.timerInterval);
-        
-        // MOBIL: Ukončit fullscreen pokud je aktivní
         if (document.fullscreenElement) {
             document.exitFullscreen().catch(e => {});
         }
-        
         socket.disconnect();
         location.href = location.pathname;
     }
@@ -1198,33 +1531,26 @@ const game = (function() {
         const val = e.target.value;
         const list = document.getElementById('autocomplete-list');
         list.innerHTML = '';
-        
         if (!val || !countries.length) {
             list.classList.remove('active');
             return;
         }
-        
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
-        
         const matches = countries.filter(c => {
             const mainMatch = norm(c[0]).includes(valNorm);
             const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
             return mainMatch || altMatch;
         }).slice(0, 5);
-        
         if (matches.length === 0) {
             list.classList.remove('active');
             return;
         }
-        
         const safeVal = escapeRegex(val);
         const regex = new RegExp(`(${safeVal})`, 'gi');
-        
         matches.forEach(c => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
-            
             const parts = c[0].split(regex);
             parts.forEach(part => {
                 if (part.toLowerCase() === val.toLowerCase()) {
@@ -1235,7 +1561,6 @@ const game = (function() {
                     div.appendChild(document.createTextNode(part));
                 }
             });
-            
             div.onclick = () => {
                 document.getElementById('guessInput').value = c[0];
                 list.classList.remove('active');
@@ -1243,32 +1568,56 @@ const game = (function() {
             };
             list.appendChild(div);
         });
-        
         list.classList.add('active');
     }
 
-    // Event listeners
+    function showSection(event, section) {
+        if (event) event.preventDefault();
+        document.getElementById('section-info').classList.add('hidden');
+        document.getElementById('section-results').classList.add('hidden');
+        document.getElementById('menu').classList.add('hidden');
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        
+        if (section === 'info') {
+            document.getElementById('section-info').classList.remove('hidden');
+            document.getElementById('nav-info-link').classList.add('active');
+        } else if (section === 'results') {
+            document.getElementById('section-results').classList.remove('hidden');
+            document.getElementById('nav-results-link').classList.add('active');
+            updateHighScoreDisplay();
+        } else if (section === 'play') {
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('nav-play-link').classList.add('active');
+            document.getElementById('host-panel').classList.add('hidden');
+            document.getElementById('join-panel').classList.add('hidden');
+            document.querySelector('.menu-grid').classList.remove('hidden');
+            document.querySelector('.menu > .mp-section').classList.remove('hidden');
+        }
+        document.getElementById('nav-links').classList.remove('active');
+        window.scrollTo(0, 0);
+    }
+
+    function toggleMobileMenu() {
+        document.getElementById('nav-links').classList.toggle('active');
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         updateHighScoreDisplay();
-        
         const url = new URLSearchParams(location.search);
         const room = url.get('room');
         if (room) {
+            showSection(null, 'play');
             document.querySelector('.menu-grid').classList.add('hidden');
-            document.querySelector('.menu').classList.add('hidden');
+            document.querySelector('.menu > .mp-section').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
             document.getElementById('join-code').value = room.slice(0, 10);
         }
-        
         document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendChat('host');
         });
-        
         document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendChat('guest');
         });
-        
-        // MOBIL: Použít touchstart pro rychlejší reakci na mobilu
         const guessBtn = document.getElementById('guessBtn');
         if (isMobile) {
             guessBtn.addEventListener('touchstart', (e) => {
@@ -1278,20 +1627,15 @@ const game = (function() {
         } else {
             guessBtn.addEventListener('click', makeGuess);
         }
-        
         document.getElementById('guessInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') makeGuess();
         });
-        
         document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
-        
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.input-wrapper')) {
                 document.getElementById('autocomplete-list').classList.remove('active');
             }
         });
-        
-        // MOBIL: Skrýt klávesnici při kliknutí mimo input
         if (isMobile) {
             document.getElementById('map').addEventListener('touchstart', () => {
                 document.getElementById('guessInput').blur();
@@ -1310,8 +1654,11 @@ const game = (function() {
         makeGuess,
         rematch,
         backToMenu,
-        showMain,
-        clearHighScores
+        cancelLobby,
+        cancelJoin,
+        clearHighScores,
+        showSection,
+        toggleMobileMenu
     };
 })();
 </script>
