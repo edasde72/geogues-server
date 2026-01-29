@@ -2,179 +2,317 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GeoGuessr Multiplayer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
     <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
-    #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
-    #map { flex: 1; background: #242424; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 300px; position: relative; z-index: 1; }
-    #map-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 50px; font-size: 18px; z-index: 1000; display: flex; align-items: center; gap: 15px; }
-    .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
-    .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 60vh; overflow-y: auto; }
-    #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; max-height: none; }
-    h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .subtitle { color: #666; font-size: 18px; margin-bottom: 20px; }
-    
-    .menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; max-width: 800px; margin: 0 auto; }
-    @media (min-width: 768px) {
-        .menu-grid { grid-template-columns: 1fr 1fr; }
-    }
-    
-    .menu-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: left; }
-    .menu-section h2 { font-size: 20px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
-    .menu-section h2 span { font-size: 24px; }
-    
-    .how-to-play { background: #f8f9ff; border-left: 4px solid #667eea; }
-    .how-to-play ul { list-style: none; padding: 0; color: #555; font-size: 15px; line-height: 1.6; }
-    .how-to-play li { margin-bottom: 10px; padding-left: 20px; position: relative; }
-    .how-to-play li:before { content: "→"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
-    .how-to-play strong { color: #667eea; }
-    
-    .highscore-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .highscore-section h2 { color: white; }
-    .highscore-list { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px; max-height: 200px; overflow-y: auto; }
-    .highscore-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 15px; }
-    .highscore-item:last-child { border-bottom: none; }
-    .highscore-item .rank { font-weight: bold; margin-right: 10px; }
-    .highscore-item .name { flex: 1; }
-    .highscore-item .score { font-weight: bold; }
-    .highscore-item .date { font-size: 12px; opacity: 0.8; margin-left: 10px; }
-    .no-scores { text-align: center; opacity: 0.8; font-style: italic; padding: 20px; }
-    .clear-scores { margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; width: 100%; }
-    
-    /* OPRAVENÉ TLAČÍTKA - přidány chybějící barvy */
-    .menu { display: flex; flex-direction: column; gap: 15px; width: 100%; }
-    .menu-btn { 
-        padding: 18px; 
-        font-size: 18px; 
-        border: none; 
-        border-radius: 12px; 
-        color: white; 
-        cursor: pointer; 
-        transition: transform 0.2s, box-shadow 0.2s; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
-        width: 100%; 
-        font-weight: 600; 
-    }
-    .menu-btn:active { transform: scale(0.98); }
-    
-    /* Singleplayer - zelené */
-    .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-    
-    /* Vytvořit hru - fialové */
-    .menu-btn.create { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    
-    /* Připojit se - růžové */
-    .menu-btn.join { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-    
-    /* Start hry - zelené pulzující */
-    .menu-btn.start-btn { 
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; 
-        animation: pulse 2s infinite; 
-    }
-    
-    .menu-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    
-    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-    
-    .mp-section { margin-top: 10px; padding-top: 15px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 10px; }
-    .select-group { display: flex; gap: 10px; margin-bottom: 10px; }
-    .continent-select, .player-count-select { padding: 12px; border-radius: 10px; border: 2px solid #667eea; font-size: 16px; flex: 1; background: white; }
-    
-    .lobby-info { background: #667eea; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .lobby-info.waiting { background: #f59e0b; color: #000; }
-    .lobby-info.ready { background: #10b981; }
-    .code-display { font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: #f0f0f0; border-radius: 12px; margin: 10px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; font-family: monospace; }
-    .player-list { background: #f8f9ff; border-radius: 12px; padding: 12px; margin: 10px 0; max-height: 150px; overflow-y: auto; }
-    .player-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #e0e0e0; font-size: 15px; }
-    .player-item:last-child { border-bottom: none; }
-    .player-item.you { background: rgba(102, 126, 234, 0.1); border-radius: 6px; }
-    .host-badge { background: #e74c3c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 5px; }
-    
-    .chat-box { background: #f5f5f5; border-radius: 12px; padding: 15px; margin: 10px 0; max-height: 180px; display: flex; flex-direction: column; border: 1px solid #e0e0e0; }
-    .chat-messages { flex: 1; overflow-y: auto; max-height: 130px; margin-bottom: 10px; text-align: left; font-size: 14px; background: white; padding: 10px; border-radius: 8px; }
-    .chat-message { padding: 5px 0; border-bottom: 1px solid #eee; }
-    .chat-message:last-child { border-bottom: none; }
-    .chat-message b { color: #667eea; }
-    .chat-message.system { color: #666; font-style: italic; font-size: 13px; }
-    .chat-input { display: flex; gap: 8px; }
-    .chat-input input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; font-size: 14px; }
-    .chat-input button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
-    
-    .multiplayer-scoreboard { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
-    .player-card { background: white; border-radius: 10px; padding: 8px 12px; min-width: 90px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid transparent; font-size: 14px; }
-    .player-card.active { border-color: #667eea; background: #f8f9ff; }
-    .player-card.out { opacity: 0.5; background: #fee; }
-    .player-card .name { font-weight: 600; margin-bottom: 2px; }
-    .player-card .score { font-size: 18px; font-weight: bold; color: #667eea; }
-    
-    .round-badge-container { margin-bottom: 15px; }
-    .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
-    .timer-badge { background: #e74c3c; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 24px; display: inline-block; font-family: monospace; }
-    
-    .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
-    .input-group { display: flex; gap: 10px; position: relative; }
-    input[type="text"] { flex: 1; padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 16px; outline: none; }
-    input[type="text"]:focus { border-color: #667eea; }
-    input.shake { animation: shake 0.5s; border-color: #ef4444; }
-    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
-    
-    /* Tlačítka ve hře (Hádat, Odpojit se) */
-    button:not(.menu-btn):not(.small) { 
-        padding: 15px 30px; 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-        color: white; 
-        border: none; 
-        border-radius: 50px; 
-        font-size: 16px; 
-        font-weight: 600; 
-        cursor: pointer; 
-    }
-    button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; }
-    button.small { padding: 10px 20px; font-size: 14px; background: #999; color: white; border: none; border-radius: 20px; cursor: pointer; }
-    
-    .autocomplete-items { position: absolute; border: 1px solid #ddd; z-index: 99; top: 100%; left: 0; right: 0; margin-top: 5px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; display: none; background: white; text-align: left; }
-    .autocomplete-items.active { display: block; }
-    .autocomplete-item { padding: 12px 20px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
-    .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
-    .autocomplete-item strong { font-weight: bold; }
-    
-    #hint { font-weight: 600; color: #667eea; margin-top: 15px; font-size: 18px; min-height: 50px; line-height: 1.4; }
-    .success { color: #10b981; font-size: 20px; font-weight: bold; }
-    .fail { color: #ef4444; } 
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; z-index: 10000; pointer-events: none; font-size: 16px; }
-    .toast.show { opacity: 1; }
-    .hidden { display: none !important; }
-    
-    /* Game Over box */
-    #game-over { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; color: white; padding: 20px; }
-    #game-over.show { display: flex; }
-    .game-over-box { background: white; color: #333; padding: 30px; border-radius: 20px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
-    .game-over-box .menu-btn { margin: 5px 0; } /* Pro tlačítka v game over boxu */
-    .winners-title { font-size: 28px; margin-bottom: 10px; font-weight: bold; color: #333; }
-    .winners-subtitle { font-size: 20px; margin-bottom: 15px; color: #667eea; font-weight: 600; }
-    .scores-list { text-align: left; margin: 15px 0; max-height: 250px; overflow-y: auto; }
-    .score-item { padding: 10px; margin: 5px 0; background: #f8f9ff; border-radius: 8px; display: flex; justify-content: space-between; font-size: 16px; align-items: center; }
-    .score-item.winner { background: #d4edda; border: 2px solid #10b981; font-weight: bold; }
-    .score-item.you { background: #e7e3f8; border: 2px solid #667eea; }
-    .score-rank { font-size: 20px; font-weight: bold; color: #667eea; margin-right: 10px; }
-    .score-name { flex: 1; text-align: left; }
-    .score-points { font-weight: bold; font-size: 18px; color: #333; }
-    .rematch-status { font-size: 16px; color: #666; margin: 10px 0; font-weight: 600; }
-    .rematch-status.ready { color: #10b981; }
-    
-    @media (max-width: 768px) {
-        .code-display { font-size: 24px; letter-spacing: 4px; }
-        .winners-title { font-size: 24px; }
-        .menu-grid { grid-template-columns: 1fr; }
-    }
-</style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
+        #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        #map { flex: 1; background: #242424; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 300px; position: relative; z-index: 1; }
+        #map-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 50px; font-size: 18px; z-index: 1000; display: flex; align-items: center; gap: 15px; }
+        .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
+        .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 60vh; overflow-y: auto; }
+        #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; max-height: none; }
+        h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: #666; font-size: 18px; margin-bottom: 20px; }
+        
+        .menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; width: 100%; max-width: 800px; margin: 0 auto; }
+        @media (min-width: 768px) {
+            .menu-grid { grid-template-columns: 1fr 1fr; }
+        }
+        
+        .menu-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: left; }
+        .menu-section h2 { font-size: 20px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .menu-section h2 span { font-size: 24px; }
+        
+        .how-to-play { background: #f8f9ff; border-left: 4px solid #667eea; }
+        .how-to-play ul { list-style: none; padding: 0; color: #555; font-size: 15px; line-height: 1.6; }
+        .how-to-play li { margin-bottom: 10px; padding-left: 20px; position: relative; }
+        .how-to-play li:before { content: "→"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
+        .how-to-play strong { color: #667eea; }
+        
+        .highscore-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .highscore-section h2 { color: white; }
+        .highscore-list { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 10px; max-height: 200px; overflow-y: auto; }
+        .highscore-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 15px; }
+        .highscore-item:last-child { border-bottom: none; }
+        .highscore-item .rank { font-weight: bold; margin-right: 10px; }
+        .highscore-item .name { flex: 1; }
+        .highscore-item .score { font-weight: bold; }
+        .highscore-item .date { font-size: 12px; opacity: 0.8; margin-left: 10px; }
+        .no-scores { text-align: center; opacity: 0.8; font-style: italic; padding: 20px; }
+        .clear-scores { margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; width: 100%; }
+        
+        .menu { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+        .menu-btn { padding: 18px; font-size: 18px; border: none; border-radius: 12px; color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; font-weight: 600; }
+        .menu-btn:active { transform: scale(0.98); }
+        .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .menu-btn.create { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .menu-btn.join { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .menu-btn.start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; animation: pulse 2s infinite; }
+        .menu-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        
+        .mp-section { margin-top: 10px; padding-top: 15px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 10px; }
+        .select-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .continent-select, .player-count-select { padding: 12px; border-radius: 10px; border: 2px solid #667eea; font-size: 16px; flex: 1; background: white; }
+        
+        .lobby-info { background: #667eea; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .lobby-info.waiting { background: #f59e0b; color: #000; }
+        .lobby-info.ready { background: #10b981; }
+        .code-display { font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: #f0f0f0; border-radius: 12px; margin: 10px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; font-family: monospace; }
+        .player-list { background: #f8f9ff; border-radius: 12px; padding: 12px; margin: 10px 0; max-height: 150px; overflow-y: auto; }
+        .player-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #e0e0e0; font-size: 15px; }
+        .player-item:last-child { border-bottom: none; }
+        .player-item.you { background: rgba(102, 126, 234, 0.1); border-radius: 6px; }
+        .host-badge { background: #e74c3c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 5px; }
+        
+        .chat-box { background: #f5f5f5; border-radius: 12px; padding: 15px; margin: 10px 0; max-height: 180px; display: flex; flex-direction: column; border: 1px solid #e0e0e0; }
+        .chat-messages { flex: 1; overflow-y: auto; max-height: 130px; margin-bottom: 10px; text-align: left; font-size: 14px; background: white; padding: 10px; border-radius: 8px; }
+        .chat-message { padding: 5px 0; border-bottom: 1px solid #eee; }
+        .chat-message:last-child { border-bottom: none; }
+        .chat-message b { color: #667eea; }
+        .chat-message.system { color: #666; font-style: italic; font-size: 13px; }
+        .chat-input { display: flex; gap: 8px; }
+        .chat-input input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #ddd; font-size: 14px; }
+        .chat-input button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; }
+        
+        .multiplayer-scoreboard { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .player-card { background: white; border-radius: 10px; padding: 8px 12px; min-width: 90px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid transparent; font-size: 14px; }
+        .player-card.active { border-color: #667eea; background: #f8f9ff; }
+        .player-card.out { opacity: 0.5; background: #fee; }
+        .player-card .name { font-weight: 600; margin-bottom: 2px; }
+        .player-card .score { font-size: 18px; font-weight: bold; color: #667eea; }
+        
+        .round-badge-container { margin-bottom: 15px; }
+        .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
+        .timer-badge { background: #e74c3c; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 24px; display: inline-block; font-family: monospace; }
+        
+        .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
+        .input-group { display: flex; gap: 10px; position: relative; }
+        input[type="text"] { flex: 1; padding: 15px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 16px; outline: none; }
+        input[type="text"]:focus { border-color: #667eea; }
+        input.shake { animation: shake 0.5s; border-color: #ef4444; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        button:not(.menu-btn):not(.small) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; }
+        button.small { padding: 10px 20px; font-size: 14px; background: #999; color: white; border: none; border-radius: 20px; cursor: pointer; }
+        
+        .autocomplete-items { position: absolute; border: 1px solid #ddd; z-index: 99; top: 100%; left: 0; right: 0; margin-top: 5px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; display: none; background: white; text-align: left; }
+        .autocomplete-items.active { display: block; }
+        .autocomplete-item { padding: 12px 20px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
+        .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
+        .autocomplete-item strong { font-weight: bold; }
+        
+        #hint { font-weight: 600; color: #667eea; margin-top: 15px; font-size: 18px; min-height: 50px; line-height: 1.4; }
+        .success { color: #10b981; font-size: 20px; font-weight: bold; }
+        .fail { color: #ef4444; } 
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; z-index: 10000; pointer-events: none; font-size: 16px; }
+        .toast.show { opacity: 1; }
+        .hidden { display: none !important; }
+        
+        #game-over { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; color: white; padding: 20px; }
+        #game-over.show { display: flex; }
+        .game-over-box { background: white; color: #333; padding: 30px; border-radius: 20px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .game-over-box .menu-btn { margin: 5px 0; }
+        .winners-title { font-size: 28px; margin-bottom: 10px; font-weight: bold; color: #333; }
+        .winners-subtitle { font-size: 20px; margin-bottom: 15px; color: #667eea; font-weight: 600; }
+        .scores-list { text-align: left; margin: 15px 0; max-height: 250px; overflow-y: auto; }
+        .score-item { padding: 10px; margin: 5px 0; background: #f8f9ff; border-radius: 8px; display: flex; justify-content: space-between; font-size: 16px; align-items: center; }
+        .score-item.winner { background: #d4edda; border: 2px solid #10b981; font-weight: bold; }
+        .score-item.you { background: #e7e3f8; border: 2px solid #667eea; }
+        .score-rank { font-size: 20px; font-weight: bold; color: #667eea; margin-right: 10px; }
+        .score-name { flex: 1; text-align: left; }
+        .score-points { font-weight: bold; font-size: 18px; color: #333; }
+        .rematch-status { font-size: 16px; color: #666; margin: 10px 0; font-weight: 600; }
+        .rematch-status.ready { color: #10b981; }
+
+        /* === MOBILNÍ OPTIMALIZACE === */
+        @media (max-width: 768px) {
+            #game-container { padding: 10px; gap: 10px; }
+            
+            /* Menu - větší tlačítka pro prsty */
+            .menu-btn { 
+                padding: 22px 20px; 
+                font-size: 20px; 
+                margin-bottom: 8px;
+                min-height: 56px; /* Apple HIG */
+            }
+            
+            /* Menší padding v menu sekcích */
+            .menu-section { padding: 15px; margin-bottom: 10px; }
+            .menu-section h2 { font-size: 18px; margin-bottom: 10px; }
+            
+            /* Zmenšit text v návodu na mobilu */
+            .how-to-play ul { font-size: 14px; line-height: 1.5; }
+            .how-to-play li { margin-bottom: 8px; padding-left: 15px; }
+            
+            /* Highscore kompaktnější */
+            .highscore-item { padding: 6px; font-size: 14px; }
+            
+            /* Selecty větší pro touch */
+            .continent-select, .player-count-select {
+                padding: 15px;
+                font-size: 16px; /* Zabrání zoomu na iOS */
+                min-height: 48px;
+            }
+            
+            /* Hra - mapa větší na mobilu */
+            #map { 
+                min-height: 45vh; 
+                border-radius: 15px;
+            }
+            
+            /* Ovládací panel */
+            .controls { 
+                padding: 15px; 
+                border-radius: 15px;
+                max-height: 45vh;
+            }
+            
+            /* Inputy větší pro mobil */
+            input[type="text"] { 
+                padding: 18px 25px; 
+                font-size: 18px; /* Zabrání iOS zoomu */
+                min-height: 48px;
+            }
+            
+            /* Tlačítko Hádat větší */
+            button:not(.menu-btn):not(.small) {
+                padding: 18px 25px;
+                font-size: 18px;
+                min-width: 100px;
+            }
+            
+            /* Autocomplete pro prsty */
+            .autocomplete-item { 
+                padding: 18px 25px; 
+                font-size: 18px; 
+                min-height: 48px;
+                display: flex;
+                align-items: center;
+            }
+            
+            /* Skóre vedle sebe na mobilu */
+            #single-stats div {
+                display: flex;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .timer-badge { 
+                font-size: 32px; 
+                padding: 10px 20px;
+            }
+            
+            /* Lobby na mobilu */
+            #host-panel, #join-panel {
+                padding: 0 5px;
+            }
+            
+            .code-display { 
+                font-size: 28px; 
+                letter-spacing: 4px; 
+                padding: 15px;
+            }
+            
+            /* Chat menší v lobby */
+            .chat-box { 
+                max-height: 150px; 
+                margin: 10px 0;
+            }
+            .chat-messages { max-height: 100px; }
+            
+            /* Game Over přes celou obrazovku na mobilu */
+            .game-over-box {
+                padding: 25px 20px;
+                margin: 10px;
+                max-height: 95vh;
+            }
+            
+            .winners-title { font-size: 24px; }
+            .winners-subtitle { font-size: 18px; }
+            
+            /* Tlačítka v game over větší */
+            .game-over-box .menu-btn {
+                padding: 20px;
+                font-size: 20px;
+            }
+            
+            /* Toast nižší na mobilu (neblokuje horní lištu) */
+            .toast {
+                bottom: 80px;
+                font-size: 15px;
+                padding: 12px 25px;
+                max-width: 90%;
+                text-align: center;
+            }
+            
+            /* Scoreboard kompaktnější */
+            .player-card {
+                padding: 6px 10px;
+                min-width: 75px;
+            }
+            .player-card .name { font-size: 13px; }
+            .player-card .score { font-size: 16px; }
+            
+            /* Hint menší */
+            #hint { 
+                font-size: 16px; 
+                margin-top: 10px;
+                min-height: 40px;
+            }
+            
+            /* Tlačítko zpět větší */
+            button.small {
+                padding: 15px 20px;
+                font-size: 16px;
+                margin-top: 15px;
+            }
+        }
+        
+        /* Extra malé mobily */
+        @media (max-width: 380px) {
+            h1 { font-size: 24px; }
+            .subtitle { font-size: 16px; }
+            
+            .menu-btn { 
+                padding: 18px 15px; 
+                font-size: 18px; 
+            }
+            
+            .code-display { font-size: 24px; letter-spacing: 2px; }
+            
+            .timer-badge { font-size: 28px; }
+        }
+        
+        /* Landscape orientace na mobilu */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #map { min-height: 60vh; }
+            .controls { max-height: 35vh; }
+            .menu-grid { display: flex; flex-direction: row; gap: 10px; }
+            .menu-section { flex: 1; font-size: 14px; }
+        }
+        
+        /* iPhone X+ notch safe area */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            @media (max-width: 768px) {
+                #game-container { 
+                    padding-bottom: calc(10px + env(safe-area-inset-bottom)); 
+                }
+                .toast {
+                    bottom: calc(20px + env(safe-area-inset-bottom));
+                }
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -346,6 +484,9 @@ const game = (function() {
     const HIGHSCORE_KEY = 'geoguessr_highscores';
     const MAX_HIGHSCORES = 10;
     
+    // Detekce mobilního zařízení pro speciální chování
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
     function escapeHtml(text) {
         if (typeof text !== 'string') return '';
         const div = document.createElement('div');
@@ -364,7 +505,6 @@ const game = (function() {
         return `${date.getDate()}.${date.getMonth()+1}.${date.getFullYear()}`;
     }
     
-    // High Score funkce
     function loadHighScores() {
         try {
             const data = localStorage.getItem(HIGHSCORE_KEY);
@@ -385,7 +525,7 @@ const game = (function() {
         
         scores.push(newScore);
         scores.sort((a, b) => b.score - a.score);
-        scores.splice(MAX_HIGHSCORES); // Zachovat jen top 10
+        scores.splice(MAX_HIGHSCORES);
         
         try {
             localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(scores));
@@ -486,6 +626,15 @@ const game = (function() {
         }
     });
 
+    // MOBIL: Zabránění zoomu při double tap na inputy
+    if (isMobile) {
+        document.addEventListener('dblclick', function(event) {
+            if (event.target.tagName === 'INPUT') {
+                event.preventDefault();
+            }
+        }, { passive: false });
+    }
+
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
         state.isHost = true;
@@ -497,6 +646,13 @@ const game = (function() {
         document.querySelector('.menu').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
         updateLobbyPlayerList([{ id: socket.id, name: 'Host', isHost: true }], state.maxPlayers);
+        
+        // MOBIL: Automaticky zkopírovat kód na mobilu pro snadné sdílení
+        if (isMobile && navigator.clipboard) {
+            setTimeout(() => {
+                copyLink();
+            }, 500);
+        }
     });
 
     socket.on('player-joined', (data) => {
@@ -555,6 +711,11 @@ const game = (function() {
         document.getElementById('rematch-btn').disabled = false;
         document.getElementById('rematch-status').classList.add('hidden');
         startMPGame();
+        
+        // MOBIL: Na mobilu skrýt adresní řádu pro větší prostor
+        if (isMobile && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => {});
+        }
     });
 
     socket.on('new-round', (data) => {
@@ -599,6 +760,11 @@ const game = (function() {
     });
 
     socket.on('game-over', (data) => {
+        // MOBIL: Ukončit fullscreen pokud je aktivní
+        if (isMobile && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
+        
         let title, subtitle;
         
         if (data.isDraw) {
@@ -751,7 +917,10 @@ const game = (function() {
     function copyLink() {
         if (!state.roomCode) return;
         const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
-        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!'));
+        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!')).catch(() => {
+            // Fallback pro mobil
+            showToast('Kód: ' + state.roomCode);
+        });
     }
 
     function setInputEnabled(en) {
@@ -842,6 +1011,11 @@ const game = (function() {
         
         startTimer();
         nextSingleRound();
+        
+        // MOBIL: Fullscreen pro lepší zážitek
+        if (isMobile && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => {});
+        }
     }
 
     function startTimer() {
@@ -877,7 +1051,11 @@ const game = (function() {
         state.finished = true;
         setInputEnabled(false);
         
-        // Uložit skóre
+        // MOBIL: Ukončit fullscreen
+        if (isMobile && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
+        
         const playerName = prompt(`Konec hry! Získal jsi ${state.score} bodů.\nZadej svoje jméno pro tabulku nejlepších:`) || 'Hráč';
         saveHighScore(playerName, state.score, state.countriesGuessed);
         
@@ -1002,6 +1180,12 @@ const game = (function() {
 
     function backToMenu() {
         if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        // MOBIL: Ukončit fullscreen pokud je aktivní
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
+        
         socket.disconnect();
         location.href = location.pathname;
     }
@@ -1065,7 +1249,7 @@ const game = (function() {
 
     // Event listeners
     document.addEventListener('DOMContentLoaded', () => {
-        updateHighScoreDisplay(); // Načíst high scores při startu
+        updateHighScoreDisplay();
         
         const url = new URLSearchParams(location.search);
         const room = url.get('room');
@@ -1084,6 +1268,17 @@ const game = (function() {
             if (e.key === 'Enter') sendChat('guest');
         });
         
+        // MOBIL: Použít touchstart pro rychlejší reakci na mobilu
+        const guessBtn = document.getElementById('guessBtn');
+        if (isMobile) {
+            guessBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                makeGuess();
+            }, {passive: false});
+        } else {
+            guessBtn.addEventListener('click', makeGuess);
+        }
+        
         document.getElementById('guessInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') makeGuess();
         });
@@ -1095,6 +1290,13 @@ const game = (function() {
                 document.getElementById('autocomplete-list').classList.remove('active');
             }
         });
+        
+        // MOBIL: Skrýt klávesnici při kliknutí mimo input
+        if (isMobile) {
+            document.getElementById('map').addEventListener('touchstart', () => {
+                document.getElementById('guessInput').blur();
+            });
+        }
     });
 
     return {
