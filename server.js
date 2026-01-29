@@ -1,4 +1,3 @@
-// server.js
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -46,7 +45,10 @@ app.use((req, res, next) => {
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: allowedOrigins },
+  cors: { 
+    origin: allowedOrigins,
+    methods: ["GET", "POST"]
+  },
   maxHttpBufferSize: 1e6
 });
 
@@ -69,7 +71,7 @@ const socketRooms = new Map();
 
 setInterval(() => {
   for (const [code, room] of rooms.entries()) {
-    const activePlayers = room.players.filter(p => io.sockets.sockets.get(p.id));
+    const activePlayers = room.players.filter(p => io.sockets.sockets.has(p.id));
     if (activePlayers.length === 0) {
       rooms.delete(code);
     }
@@ -106,7 +108,8 @@ io.on("connection", socket => {
         finished: false, 
         continent: c, 
         started: false,
-        totalRounds: 5
+        totalRounds: 5,
+        processingGuess: false // Ochrana proti závodní podmínce
       },
       chat: []
     });
@@ -127,7 +130,7 @@ io.on("connection", socket => {
     if (room.gameState.started) return socket.emit("join-error", "Hra už začala");
     if (room.players.find(p => p.id === socket.id)) return socket.emit("join-error", "Už jsi v místnosti");
     
-    const name = sanitize(nickname) || `Hráč ${room.players.length + 1}`;
+    const name = sanitize(nickname).slice(0, 20) || `Hráč ${room.players.length + 1}`;
     room.players.push({ id: socket.id, name: name, score: 0, out: false, guessed: false });
     socket.join(code);
     socketRooms.set(socket.id, code);
@@ -181,8 +184,15 @@ io.on("connection", socket => {
     const room = rooms.get(code);
     if (!room || !room.gameState.started || room.gameState.finished) return;
     
+    // Ochrana proti závodní podmínce
+    if (room.gameState.processingGuess) return;
+    room.gameState.processingGuess = true;
+    
     const player = room.players.find(p => p.id === socket.id);
-    if (!player || player.guessed) return;
+    if (!player || player.guessed) {
+      room.gameState.processingGuess = false;
+      return;
+    }
     
     player.score += 1;
     player.guessed = true;
@@ -200,9 +210,15 @@ io.on("connection", socket => {
     
     if (!isFinal) {
       room.gameState.round++;
-      setTimeout(() => startNewRound(code, room), 3000);
+      setTimeout(() => {
+        room.gameState.processingGuess = false;
+        startNewRound(code, room);
+      }, 3000);
     } else {
-      setTimeout(() => endGame(room, code), 3000);
+      setTimeout(() => {
+        room.gameState.processingGuess = false;
+        endGame(room, code);
+      }, 3000);
     }
   });
 
@@ -256,6 +272,7 @@ io.on("connection", socket => {
     room.gameState.finished = false;
     room.gameState.started = true;
     room.gameState.currentCountry = null;
+    room.gameState.processingGuess = false;
     
     io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
     startNewRound(code, room);
@@ -333,7 +350,12 @@ io.on("connection", socket => {
     room.gameState.finished = false;
     
     const list = countriesData[room.gameState.continent] || countriesData.world;
-    const country = list[Math.floor(Math.random() * list.length)];
+    let country;
+    // Zabránění stejné zemi dvakrát po sobě
+    do {
+      country = list[Math.floor(Math.random() * list.length)];
+    } while (country === room.gameState.currentCountry && list.length > 1);
+    
     room.gameState.currentCountry = country;
     
     io.to(code).emit("new-round", {
@@ -356,5 +378,7 @@ io.on("connection", socket => {
   }
 });
 
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
