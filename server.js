@@ -109,9 +109,10 @@ io.on("connection", socket => {
         continent: c, 
         started: false,
         totalRounds: 5,
-        processingGuess: false // Ochrana proti závodní podmínce
+        processingGuess: false
       },
-      chat: []
+      chat: [],
+      rematchVotes: new Set() // Nové: sledování kdo chce rematch
     });
     
     socket.join(code);
@@ -173,6 +174,9 @@ io.on("connection", socket => {
     if (!room || room.host !== socket.id || room.gameState.started) return;
     if (room.players.length < 2) return socket.emit("error", "Potřebuješ alespoň 2 hráče");
     
+    // Reset rematch votes při startu
+    room.rematchVotes.clear();
+    
     room.gameState.started = true;
     io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
     startNewRound(code, room);
@@ -184,7 +188,6 @@ io.on("connection", socket => {
     const room = rooms.get(code);
     if (!room || !room.gameState.started || room.gameState.finished) return;
     
-    // Ochrana proti závodní podmínce
     if (room.gameState.processingGuess) return;
     room.gameState.processingGuess = true;
     
@@ -257,31 +260,80 @@ io.on("connection", socket => {
     }
   });
 
+  // Nové: Hlasování pro rematch
   socket.on("request-rematch", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
     const room = rooms.get(code);
-    if (!room || room.host !== socket.id) return;
+    if (!room) return;
     
-    room.players.forEach(p => {
-      p.score = 0;
-      p.out = false;
-      p.guessed = false;
+    // Přidat hráče do hlasů
+    room.rematchVotes.add(socket.id);
+    
+    const votes = room.rematchVotes.size;
+    const total = room.players.length;
+    
+    // Poslat všem aktuální stav
+    io.to(code).emit("rematch-status", { 
+      votes, 
+      total, 
+      ready: votes === total 
     });
-    room.gameState.round = 1;
-    room.gameState.finished = false;
-    room.gameState.started = true;
-    room.gameState.currentCountry = null;
-    room.gameState.processingGuess = false;
     
-    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
-    startNewRound(code, room);
+    // Pokud jsou všichni připraveni, spustit hru
+    if (votes === total && total > 0) {
+      // Reset hry
+      room.players.forEach(p => {
+        p.score = 0;
+        p.out = false;
+        p.guessed = false;
+      });
+      room.gameState.round = 1;
+      room.gameState.finished = false;
+      room.gameState.started = true;
+      room.gameState.currentCountry = null;
+      room.gameState.processingGuess = false;
+      room.rematchVotes.clear();
+      
+      io.to(code).emit("game-started", { 
+        totalRounds: room.gameState.totalRounds, 
+        players: room.players.map(p => ({id: p.id, name: p.name})) 
+      });
+      startNewRound(code, room);
+    }
+  });
+
+  // Nové: Zrušení hlasu (když někdo klikne znovu nebo odejde)
+  socket.on("cancel-rematch", () => {
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+    
+    room.rematchVotes.delete(socket.id);
+    io.to(code).emit("rematch-status", { 
+      votes: room.rematchVotes.size, 
+      total: room.players.length,
+      ready: false
+    });
   });
 
   socket.on("disconnect", () => {
     const code = socketRooms.get(socket.id);
     if (code && rooms.has(code)) {
       const room = rooms.get(code);
+      
+      // Odstranit z hlasů pro rematch
+      if (room.rematchVotes) {
+        room.rematchVotes.delete(socket.id);
+        // Informovat ostatní o změně
+        io.to(code).emit("rematch-status", { 
+          votes: room.rematchVotes.size, 
+          total: room.players.length - 1, // -1 protože ten co odešel ještě není odstraněn
+          ready: false
+        });
+      }
+      
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
       
       if (playerIndex !== -1) {
@@ -351,7 +403,6 @@ io.on("connection", socket => {
     
     const list = countriesData[room.gameState.continent] || countriesData.world;
     let country;
-    // Zabránění stejné zemi dvakrát po sobě
     do {
       country = list[Math.floor(Math.random() * list.length)];
     } while (country === room.gameState.currentCountry && list.length > 1);
