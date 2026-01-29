@@ -52,12 +52,213 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e6
 });
 
+// ROZŠÍŘENÉ ZEMĚ - více než 100 zemí celkem
 const countriesData = {
-  europe: [["Albánie",41.32,19.81,["albania"]],["Rakousko",48.20,16.37,["austria"]],["Belgie",50.85,4.35,["belgium"]],["Bulharsko",42.69,23.32,["bulgaria"]],["Chorvatsko",45.81,15.98,["croatia"]],["Česko",50.07,14.43,["czech","cesko"]],["Dánsko",55.67,12.56,["denmark"]],["Estonsko",59.43,24.75,["estonia"]],["Finsko",60.16,24.93,["finland"]],["Francie",48.85,2.35,["france"]],["Německo",52.52,13.40,["germany"]],["Řecko",37.98,23.72,["greece"]],["Maďarsko",47.49,19.04,["hungary"]],["Island",64.14,-21.94,["iceland"]],["Irsko",53.34,-6.26,["ireland"]],["Itálie",41.90,12.49,["italy"]],["Litva",54.68,25.27,["lithuania"]],["Nizozemsko",52.36,4.90,["netherlands"]],["Norsko",59.91,10.75,["norway"]],["Polsko",52.22,21.01,["poland"]],["Portugalsko",38.72,-9.13,["portugal"]],["Rumunsko",44.42,26.10,["romania"]],["Rusko",55.75,37.61,["russia"]],["Slovensko",48.14,17.10,["slovakia"]],["Slovinsko",46.05,14.50,["slovenia"]],["Španělsko",40.41,-3.70,["spain"]],["Švédsko",59.32,18.06,["sweden"]],["Švýcarsko",46.94,7.44,["switzerland"]],["Ukrajina",50.45,30.52,["ukraine"]],["Velká Británie",51.50,-0.12,["britain","uk"]]],
-  asia: [["Afghánistán",34.52,69.17,["afghanistan"]],["Bangladéš",23.81,90.41,["bangladesh"]],["Čína",39.90,116.41,["china"]],["Indie",28.61,77.20,["india"]],["Indonésie",-6.20,106.84,["indonesia"]],["Irán",35.68,51.38,["iran"]],["Irák",33.31,44.36,["iraq"]],["Izrael",31.76,35.21,["israel"]],["Japonsko",35.67,139.65,["japan"]],["Jordánsko",31.94,35.92,["jordan"]],["Kazachstán",51.16,71.42,["kazakhstan"]],["Malajsie",3.13,101.68,["malaysia"]],["Pákistán",33.68,73.04,["pakistan"]],["Filipíny",14.59,120.98,["philippines"]],["Saúdská Arábie",24.71,46.67,["saudi"]],["Singapur",1.35,103.81,["singapore"]],["Jižní Korea",37.56,126.97,["korea"]],["Thajsko",13.75,100.50,["thailand"]],["Turecko",39.93,32.85,["turkey"]],["Vietnam",21.02,105.83,["vietnam"]]],
-  americas: [["Argentina",-34.60,-58.38,["argentyna"]],["Brazílie",-15.79,-47.88,["brazil"]],["Kanada",45.42,-75.69,["canada"]],["Chile",-33.44,-70.66,["chile"]],["Kolumbie",4.71,-74.07,["colombia"]],["Kuba",23.11,-82.36,["cuba"]],["Mexiko",19.43,-99.13,["mexico"]],["Peru",-12.04,-77.04,["peru"]],["USA",38.90,-77.03,["usa"]]],
-  africa: [["Alžírsko",28.03,1.65,["algeria"]],["Egypt",30.04,31.23,["egypt"]],["Keňa",-1.29,36.82,["kenya"]],["Maroko",34.02,-6.84,["morocco"]],["Jižní Afrika",-25.74,28.22,["africa"]],["Tunisko",36.80,10.18,["tunisia"]]],
-  oceania: [["Austrálie",-35.28,149.13,["australia"]],["Nový Zéland",-41.28,174.77,["zealand"]]]
+  europe: [
+    ["Albánie",41.32,19.81,["albania"]],
+    ["Andora",42.50,1.52,["andorra"]],
+    ["Rakousko",48.20,16.37,["austria"]],
+    ["Bělorusko",53.90,27.56,["belarus","bylorusko"]],
+    ["Belgie",50.85,4.35,["belgium"]],
+    ["Bosna a Hercegovina",43.85,18.41,["bosna","bosnia"]],
+    ["Bulharsko",42.69,23.32,["bulgaria"]],
+    ["Chorvatsko",45.81,15.98,["croatia"]],
+    ["Kypr",35.18,33.38,["cyprus"]],
+    ["Česko",50.07,14.43,["czech","cesko","czechia"]],
+    ["Dánsko",55.67,12.56,["denmark"]],
+    ["Estonsko",59.43,24.75,["estonia"]],
+    ["Finsko",60.16,24.93,["finland"]],
+    ["Francie",48.85,2.35,["france"]],
+    ["Německo",52.52,13.40,["germany","nemecko"]],
+    ["Řecko",37.98,23.72,["greece","recko"]],
+    ["Maďarsko",47.49,19.04,["hungary","madarsko"]],
+    ["Island",64.14,-21.94,["iceland"]],
+    ["Irsko",53.34,-6.26,["ireland"]],
+    ["Itálie",41.90,12.49,["italy"]],
+    ["Kosovo",42.66,21.16,["kosovo"]],
+    ["Lotyšsko",56.94,24.10,["latvia"]],
+    ["Lichtenštejnsko",47.14,9.52,["liechtenstein"]],
+    ["Litva",54.68,25.27,["lithuania"]],
+    ["Lucembursko",49.61,6.13,["luxembourg"]],
+    ["Malta",35.89,14.50,["malta"]],
+    ["Monako",43.73,7.42,["monaco"]],
+    ["Černá Hora",42.44,19.26,["montenegro"]],
+    ["Nizozemsko",52.36,4.90,["netherlands","holandsko"]],
+    ["Severní Makedonie",41.99,21.43,["macedonia","makedonie"]],
+    ["Norsko",59.91,10.75,["norway"]],
+    ["Polsko",52.22,21.01,["poland"]],
+    ["Portugalsko",38.72,-9.13,["portugal"]],
+    ["Moldavsko",47.01,28.86,["moldova"]],
+    ["Rumunsko",44.42,26.10,["romania"]],
+    ["Rusko",55.75,37.61,["russia"]],
+    ["San Marino",43.94,12.46,["san marino"]],
+    ["Srbsko",44.78,20.44,["serbia"]],
+    ["Slovensko",48.14,17.10,["slovakia"]],
+    ["Slovinsko",46.05,14.50,["slovenia"]],
+    ["Španělsko",40.41,-3.70,["spain"]],
+    ["Švédsko",59.32,18.06,["sweden"]],
+    ["Švýcarsko",46.94,7.44,["switzerland"]],
+    ["Ukrajina",50.45,30.52,["ukraine"]],
+    ["Velká Británie",51.50,-0.12,["britain","uk","england"]],
+    ["Vatikán",41.90,12.45,["vatican"]]
+  ],
+  asia: [
+    ["Afghánistán",34.52,69.17,["afghanistan"]],
+    ["Arménie",40.17,44.50,["armenia"]],
+    ["Ázerbájdžán",40.40,49.86,["azerbaijan"]],
+    ["Bahrajn",26.22,50.58,["bahrain"]],
+    ["Bangladéš",23.81,90.41,["bangladesh"]],
+    ["Bhútán",27.51,90.43,["bhutan"]],
+    ["Brunej",4.53,114.72,["brunei"]],
+    ["Kambodža",11.55,104.92,["cambodia"]],
+    ["Čína",39.90,116.41,["china"]],
+    ["Georgie",41.71,44.82,["georgia","gruzie"]],
+    ["Indie",28.61,77.20,["india"]],
+    ["Indonésie",-6.20,106.84,["indonesia"]],
+    ["Irán",35.68,51.38,["iran"]],
+    ["Irák",33.31,44.36,["iraq"]],
+    ["Izrael",31.76,35.21,["israel"]],
+    ["Japonsko",35.67,139.65,["japan"]],
+    ["Jordánsko",31.94,35.92,["jordan"]],
+    ["Kazachstán",51.16,71.42,["kazakhstan"]],
+    ["Kuvajt",29.37,47.97,["kuwait"]],
+    ["Kyrgyzstán",42.87,74.59,["kyrgyzstan","kyrgyzstan"]],
+    ["Laos",17.97,102.63,["laos"]],
+    ["Libanon",33.89,35.50,["lebanon"]],
+    ["Malajsie",3.13,101.68,["malaysia"]],
+    ["Maledivy",3.20,73.22,["maldives"]],
+    ["Mongolsko",47.91,106.88,["mongolia"]],
+    ["Myanmar",19.76,96.07,["myanmar","burma"]],
+    ["Nepál",27.71,85.32,["nepal"]],
+    ["Korea",39.03,125.76,["north korea","kldr","severni korea"]],
+    ["Omán",23.58,58.40,["oman"]],
+    ["Pákistán",33.68,73.04,["pakistan"]],
+    ["Filipíny",14.59,120.98,["philippines"]],
+    ["Katar",25.28,51.53,["qatar"]],
+    ["Saúdská Arábie",24.71,46.67,["saudi"]],
+    ["Singapur",1.35,103.81,["singapore"]],
+    ["Jižní Korea",37.56,126.97,["south korea","korea"]],
+    ["Srí Lanka",6.92,79.86,["sri lanka"]],
+    ["Sýrie",33.51,36.27,["syria"]],
+    ["Tádžikistán",38.55,68.78,["tajikistan"]],
+    ["Thajsko",13.75,100.50,["thailand"]],
+    ["Východní Timor",-8.55,125.56,["timor","east timor"]],
+    ["Turecko",39.93,32.85,["turkey"]],
+    ["Turkmenistán",37.96,58.32,["turkmenistan"]],
+    ["Spojené arabské emiráty",24.45,54.37,["uae","emiraty"]],
+    ["Uzbekistán",41.29,69.24,["uzbekistan"]],
+    ["Vietnam",21.02,105.83,["vietnam"]],
+    ["Jemen",15.36,44.19,["yemen"]]
+  ],
+  americas: [
+    ["Antigua a Barbuda",17.12,-61.84,["antigua"]],
+    ["Argentina",-34.60,-58.38,["argentina"]],
+    ["Bahamy",25.03,-77.39,["bahamas"]],
+    ["Barbados",13.10,-59.61,["barbados"]],
+    ["Belize",17.25,-88.76,["belize"]],
+    ["Bolívie",-17.78,-63.18,["bolivia"]],
+    ["Brazílie",-15.79,-47.88,["brazil"]],
+    ["Kanada",45.42,-75.69,["canada"]],
+    ["Chile",-33.44,-70.66,["chile"]],
+    ["Kolumbie",4.71,-74.07,["colombia"]],
+    ["Kostarika",9.92,-84.09,["costa rica"]],
+    ["Kuba",23.11,-82.36,["cuba"]],
+    ["Dominika",15.41,-61.37,["dominica"]],
+    ["Dominikánská republika",18.73,-70.16,["dominican republic"]],
+    ["Ekvádor",-0.18,-78.46,["ecuador"]],
+    ["Salvador",13.69,-89.21,["el salvador"]],
+    ["Grenada",12.11,-61.67,["grenada"]],
+    ["Guatemala",14.63,-90.50,["guatemala"]],
+    ["Guyana",6.80,-58.16,["guyana"]],
+    ["Haiti",18.59,-72.30,["haiti"]],
+    ["Honduras",14.07,-87.20,["honduras"]],
+    ["Jamajka",18.01,-76.80,["jamaica"]],
+    ["Mexiko",19.43,-99.13,["mexico"]],
+    ["Nikaragua",12.86,-85.20,["nicaragua"]],
+    ["Panama",8.98,-79.51,["panama"]],
+    ["Paraguay",-25.26,-57.57,["paraguay"]],
+    ["Peru",-12.04,-77.04,["peru"]],
+    ["Svatý Kryštof a Nevis",17.35,-62.78,["saint kitts"]],
+    ["Svatá Lucie",13.90,-60.97,["saint lucia"]],
+    ["Svatý Vincenc a Grenadiny",13.25,-61.19,["saint vincent"]],
+    ["Surinam",5.85,-55.20,["suriname"]],
+    ["Trinidad a Tobago",10.65,-61.51,["trinidad"]],
+    ["USA",38.90,-77.03,["usa","america"]],
+    ["Uruguay",-34.90,-56.16,["uruguay"]],
+    ["Venezuela",10.48,-66.90,["venezuela"]]
+  ],
+  africa: [
+    ["Alžírsko",28.03,1.65,["algeria"]],
+    ["Angola",-8.83,13.23,["angola"]],
+    ["Benin",6.49,2.62,["benin"]],
+    ["Botswana",-24.62,25.92,["botswana"]],
+    ["Burkina Faso",12.37,-1.52,["burkina faso"]],
+    ["Burundi",-3.38,29.36,["burundi"]],
+    ["Kamerun",3.84,11.50,["cameroon"]],
+    ["Kapverdy",14.91,-23.51,["cape verde"]],
+    ["Středoafrická republika",6.61,20.93,["car"]],
+    ["Čad",12.13,15.05,["chad"]],
+    ["Komory",-11.70,43.25,["comoros"]],
+    ["Demokratická republika Kongo",-4.44,15.26,["drc","kongo"]],
+    ["Republika Kongo",-4.26,15.24,["congo"]],
+    ["Džibutsko",11.57,43.15,["djibouti"]],
+    ["Egypt",30.04,31.23,["egypt"]],
+    ["Rovníková Guinea",1.65,10.26,["equatorial guinea"]],
+    ["Eritrea",15.32,38.92,["eritrea"]],
+    ["Svazijsko",-26.30,31.13,["eswatini","swaziland"]],
+    ["Etiopie",9.00,38.75,["ethiopia"]],
+    ["Gabon",-0.80,11.60,["gabon"]],
+    ["Gambie",13.44,-15.31,["gambia"]],
+    ["Ghana",5.60,-0.18,["ghana"]],
+    ["Guinea",9.94,-9.69,["guinea"]],
+    ["Guinea-Bissau",11.80,-15.18,["guinea bissau"]],
+    ["Pobřeží slonoviny",6.82,-5.27,["ivory coast","pobrezi slonoviny"]],
+    ["Keňa",-1.29,36.82,["kenya"]],
+    ["Lesotho",-29.61,28.23,["lesotho"]],
+    ["Liberie",6.42,-10.80,["liberia"]],
+    ["Libye",32.88,13.19,["libya"]],
+    ["Madagaskar",-18.87,47.50,["madagascar"]],
+    ["Malawi",-13.95,33.77,["malawi"]],
+    ["Mali",12.63,-8.00,["mali"]],
+    ["Mauritánie",18.07,-15.96,["mauritania"]],
+    ["Mauricius",-20.34,57.55,["mauritius"]],
+    ["Maroko",34.02,-6.84,["morocco"]],
+    ["Mosambik",-25.96,32.57,["mozambique"]],
+    ["Namibie",-22.56,17.06,["namibia"]],
+    ["Niger",13.51,2.12,["niger"]],
+    ["Nigérie",9.08,7.39,["nigeria"]],
+    ["Rwanda",-1.94,29.87,["rwanda"]],
+    ["Svatý Tomáš a Princův ostrov",0.33,6.73,["sao tome"]],
+    ["Senegal",14.71,-17.46,["senegal"]],
+    ["Seychely",-4.67,55.46,["seychelles"]],
+    ["Sierra Leone",8.46,-13.23,["sierra leone"]],
+    ["Somálsko",2.04,45.31,["somalia"]],
+    ["Jižní Afrika",-25.74,28.22,["south africa","africa"]],
+    ["Jižní Súdán",4.85,31.58,["south sudan"]],
+    ["Súdán",15.50,32.58,["sudan"]],
+    ["Tanzánie",-6.36,34.88,["tanzania"]],
+    ["Togo",6.13,1.22,["togo"]],
+    ["Tunisko",36.80,10.18,["tunisia"]],
+    ["Uganda",0.34,32.58,["uganda"]],
+    ["Zambie",-15.38,28.32,["zambia"]],
+    ["Zimbabwe",-17.82,31.05,["zimbabwe"]]
+  ],
+  oceania: [
+    ["Austrálie",-35.28,149.13,["australia"]],
+    ["Fidži",-18.12,178.44,["fiji"]],
+    ["Kiribati",1.32,172.98,["kiribati"]],
+    ["Marshallovy ostrovy",7.11,171.18,["marshall islands"]],
+    ["Mikronésie",6.92,158.25,["micronesia"]],
+    ["Nauru",-0.52,166.93,["nauru"]],
+    ["Nový Zéland",-41.28,174.77,["new zealand","zealand"]],
+    ["Palau",7.51,134.58,["palau"]],
+    ["Papua Nová Guinea",-9.47,147.18,["papua"]],
+    ["Samoa",-13.85,-171.75,["samoa"]],
+    ["Šalomounovy ostrovy",-9.43,159.95,["solomon islands"]],
+    ["Tonga",-21.13,-175.20,["tonga"]],
+    ["Tuvalu",-8.51,179.20,["tuvalu"]],
+    ["Vanuatu",-17.73,168.32,["vanuatu"]]
+  ]
 };
 countriesData.world = [...countriesData.europe, ...countriesData.asia, ...countriesData.americas, ...countriesData.africa, ...countriesData.oceania];
 
@@ -112,7 +313,7 @@ io.on("connection", socket => {
         processingGuess: false
       },
       chat: [],
-      rematchVotes: new Set() // Nové: sledování kdo chce rematch
+      rematchVotes: new Set()
     });
     
     socket.join(code);
@@ -174,7 +375,6 @@ io.on("connection", socket => {
     if (!room || room.host !== socket.id || room.gameState.started) return;
     if (room.players.length < 2) return socket.emit("error", "Potřebuješ alespoň 2 hráče");
     
-    // Reset rematch votes při startu
     room.rematchVotes.clear();
     
     room.gameState.started = true;
@@ -260,29 +460,24 @@ io.on("connection", socket => {
     }
   });
 
-  // Nové: Hlasování pro rematch
   socket.on("request-rematch", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
     const room = rooms.get(code);
     if (!room) return;
     
-    // Přidat hráče do hlasů
     room.rematchVotes.add(socket.id);
     
     const votes = room.rematchVotes.size;
     const total = room.players.length;
     
-    // Poslat všem aktuální stav
     io.to(code).emit("rematch-status", { 
       votes, 
       total, 
       ready: votes === total 
     });
     
-    // Pokud jsou všichni připraveni, spustit hru
     if (votes === total && total > 0) {
-      // Reset hry
       room.players.forEach(p => {
         p.score = 0;
         p.out = false;
@@ -303,7 +498,6 @@ io.on("connection", socket => {
     }
   });
 
-  // Nové: Zrušení hlasu (když někdo klikne znovu nebo odejde)
   socket.on("cancel-rematch", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
@@ -323,13 +517,11 @@ io.on("connection", socket => {
     if (code && rooms.has(code)) {
       const room = rooms.get(code);
       
-      // Odstranit z hlasů pro rematch
       if (room.rematchVotes) {
         room.rematchVotes.delete(socket.id);
-        // Informovat ostatní o změně
         io.to(code).emit("rematch-status", { 
           votes: room.rematchVotes.size, 
-          total: room.players.length - 1, // -1 protože ten co odešel ještě není odstraněn
+          total: room.players.length - 1,
           ready: false
         });
       }
