@@ -109,7 +109,7 @@ io.on("connection", socket => {
         continent: c, 
         started: false,
         totalRounds: 5,
-        processingGuess: false // Ochrana proti závodní podmínce
+        processingGuess: false
       },
       chat: []
     });
@@ -184,7 +184,6 @@ io.on("connection", socket => {
     const room = rooms.get(code);
     if (!room || !room.gameState.started || room.gameState.finished) return;
     
-    // Ochrana proti závodní podmínce
     if (room.gameState.processingGuess) return;
     room.gameState.processingGuess = true;
     
@@ -351,7 +350,6 @@ io.on("connection", socket => {
     
     const list = countriesData[room.gameState.continent] || countriesData.world;
     let country;
-    // Zabránění stejné zemi dvakrát po sobě
     do {
       country = list[Math.floor(Math.random() * list.length)];
     } while (country === room.gameState.currentCountry && list.length > 1);
@@ -378,7 +376,6 @@ io.on("connection", socket => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
+// POZOR: PORT je definován pouze zde na konci souboru!
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
