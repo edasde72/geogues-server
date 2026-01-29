@@ -69,11 +69,13 @@ const generateCode = () => crypto.randomBytes(3).toString('hex').toUpperCase();
 const rooms = new Map();
 const socketRooms = new Map();
 
+// Cleanup prázdných místností každých 5 minut
 setInterval(() => {
   for (const [code, room] of rooms.entries()) {
     const activePlayers = room.players.filter(p => io.sockets.sockets.has(p.id));
     if (activePlayers.length === 0) {
       rooms.delete(code);
+      console.log(`Smazána prázdná místnost: ${code}`);
     }
   }
 }, 300000);
@@ -89,9 +91,10 @@ function rateLimit(id, event, max=10, windowMs=10000) {
 }
 
 io.on("connection", socket => {
-  console.log("Connected:", socket.id);
+  console.log("Připojen:", socket.id);
   socket.emit('init-data', { countries: countriesData });
 
+  // Vytvoření místnosti
   socket.on("create-room", ({ continent, maxPlayers }) => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
     const code = generateCode();
@@ -111,16 +114,19 @@ io.on("connection", socket => {
         totalRounds: 5,
         processingGuess: false
       },
-      chat: []
+      chat: [],
+      votes: null // Pro hlasování
     });
     
     socket.join(code);
     socketRooms.set(socket.id, code);
     socket.emit("room-created", { code, continent: c, maxPlayers: playerLimit });
+    console.log(`Vytvořena místnost: ${code}, host: ${socket.id}`);
   });
 
+  // Připojení k místnosti
   socket.on("join-room", ({ code, nickname }) => {
-    if (!rateLimit(socket.id, 'join', 5, 60000)) return socket.emit('join-error', "Too many attempts");
+    if (!rateLimit(socket.id, 'join', 5, 60000)) return socket.emit('join-error', "Příliš mnoho pokusů");
     if (typeof code !== 'string') return;
     code = code.toUpperCase().slice(0,10);
     
@@ -143,6 +149,7 @@ io.on("connection", socket => {
     updatePlayerList(code, room);
   });
 
+  // Chat
   socket.on("chat-message", (msg) => {
     if (!rateLimit(socket.id, 'chat', 5, 5000)) return;
     const code = socketRooms.get(socket.id);
@@ -165,6 +172,7 @@ io.on("connection", socket => {
     io.to(code).emit("new-chat-message", data);
   });
 
+  // Start hry
   socket.on("start-game", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
@@ -173,11 +181,14 @@ io.on("connection", socket => {
     if (!room || room.host !== socket.id || room.gameState.started) return;
     if (room.players.length < 2) return socket.emit("error", "Potřebuješ alespoň 2 hráče");
     
+    // Reset hlasování při nové hře
+    room.votes = null;
     room.gameState.started = true;
     io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
     startNewRound(code, room);
   });
 
+  // Správná odpověď
   socket.on("correct-guess", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
@@ -221,6 +232,7 @@ io.on("connection", socket => {
     }
   });
 
+  // Došly pokusy
   socket.on("out-of-attempts", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
@@ -256,6 +268,64 @@ io.on("connection", socket => {
     }
   });
 
+  // NOVÉ: Hlasování o rematch
+  socket.on("vote-rematch", ({ vote }) => {
+    const code = socketRooms.get(socket.id);
+    if (!code || !rooms.has(code)) return;
+    
+    const room = rooms.get(code);
+    if (!room.gameState.started) return;
+    
+    if (!room.votes) room.votes = { yes: 0, no: 0, voted: new Set() };
+    
+    // Zabránit dvojhlasu
+    if (room.votes.voted.has(socket.id)) return;
+    room.votes.voted.add(socket.id);
+    
+    if (vote) room.votes.yes++;
+    else room.votes.no++;
+    
+    io.to(code).emit("vote-update", { 
+      yes: room.votes.yes, 
+      no: room.votes.no 
+    });
+    
+    // Pokud někdo volí NE, ukončíme hlasování a vrátíme do menu
+    if (!vote) {
+      setTimeout(() => {
+        io.to(code).emit("vote-end", { result: 'cancel' });
+      }, 2000);
+    }
+  });
+
+  // NOVÉ: Start rematch po hlasování (jen host)
+  socket.on("start-rematch", () => {
+    const code = socketRooms.get(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room || room.host !== socket.id) return;
+    
+    // Reset všeho
+    room.votes = null;
+    room.players.forEach(p => {
+      p.score = 0;
+      p.out = false;
+      p.guessed = false;
+    });
+    room.gameState.round = 1;
+    room.gameState.finished = false;
+    room.gameState.started = true;
+    room.gameState.currentCountry = null;
+    room.gameState.processingGuess = false;
+    
+    io.to(code).emit("game-started", { 
+      totalRounds: room.gameState.totalRounds, 
+      players: room.players.map(p => ({id: p.id, name: p.name})) 
+    });
+    startNewRound(code, room);
+  });
+
+  // Staré rematch (pro zpětnou kompatibilitu)
   socket.on("request-rematch", () => {
     const code = socketRooms.get(socket.id);
     if (!code) return;
@@ -277,7 +347,9 @@ io.on("connection", socket => {
     startNewRound(code, room);
   });
 
+  // Odpojení
   socket.on("disconnect", () => {
+    console.log("Odpojen:", socket.id);
     const code = socketRooms.get(socket.id);
     if (code && rooms.has(code)) {
       const room = rooms.get(code);
@@ -289,6 +361,7 @@ io.on("connection", socket => {
         
         if (room.players.length === 0) {
           rooms.delete(code);
+          console.log(`Místnost ${code} smazána (prázdná)`);
         } else {
           if (room.host === socket.id && room.players.length > 0) {
             room.host = room.players[0].id;
@@ -313,6 +386,7 @@ io.on("connection", socket => {
     socketRooms.delete(socket.id);
   });
 
+  // Pomocné funkce
   function addChatMessage(code, sender, text, excludeId) {
     const room = rooms.get(code);
     if (!room) return;
@@ -376,6 +450,6 @@ io.on("connection", socket => {
   }
 });
 
-// POZOR: PORT je definován pouze zde na konci souboru!
+// PORT definován pouze zde na konci souboru!
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server běží na portu ${PORT}`));
