@@ -1,4 +1,4 @@
-// server.js - MULTIPLAYER 2-8 HRÁČŮ
+// server.js
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -72,7 +72,6 @@ setInterval(() => {
     const activePlayers = room.players.filter(p => io.sockets.sockets.get(p.id));
     if (activePlayers.length === 0) {
       rooms.delete(code);
-      console.log(`Cleaned up empty room ${code}`);
     }
   }
 }, 300000);
@@ -95,7 +94,7 @@ io.on("connection", socket => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
     const code = generateCode();
     const c = validateContinent(continent);
-    const playerLimit = Math.min(Math.max(parseInt(maxPlayers) || 4, 2), 8); // 2-8 hráčů
+    const playerLimit = Math.min(Math.max(parseInt(maxPlayers) || 4, 2), 8);
     
     rooms.set(code, {
       host: socket.id,
@@ -115,8 +114,6 @@ io.on("connection", socket => {
     socket.join(code);
     socketRooms.set(socket.id, code);
     socket.emit("room-created", { code, continent: c, maxPlayers: playerLimit });
-    updatePlayerList(code);
-    console.log(`Room ${code} created by ${socket.id}, max ${playerLimit} players`);
   });
 
   socket.on("join-room", ({ code, nickname }) => {
@@ -126,7 +123,7 @@ io.on("connection", socket => {
     
     const room = rooms.get(code);
     if (!room) return socket.emit("join-error", "Místnost neexistuje");
-    if (room.players.length >= room.maxPlayers) return socket.emit("join-error", "Místnost je plná (max " + room.maxPlayers + " hráčů)");
+    if (room.players.length >= room.maxPlayers) return socket.emit("join-error", "Místnost je plná");
     if (room.gameState.started) return socket.emit("join-error", "Hra už začala");
     if (room.players.find(p => p.id === socket.id)) return socket.emit("join-error", "Už jsi v místnosti");
     
@@ -138,12 +135,9 @@ io.on("connection", socket => {
     socket.emit("joined-room", { code, continent: room.gameState.continent, yourId: socket.id });
     socket.emit("chat-history", room.chat);
     
-    // Notify others
     socket.to(code).emit("player-joined", { name: name, count: room.players.length, max: room.maxPlayers });
     addChatMessage(code, 'Systém', `${name} se připojil`, socket.id);
-    updatePlayerList(code);
-    
-    console.log(`${name} joined room ${code} (${room.players.length}/${room.maxPlayers})`);
+    updatePlayerList(code, room);
   });
 
   socket.on("chat-message", (msg) => {
@@ -177,9 +171,8 @@ io.on("connection", socket => {
     if (room.players.length < 2) return socket.emit("error", "Potřebuješ alespoň 2 hráče");
     
     room.gameState.started = true;
-    console.log(`Game starting in room ${code} with ${room.players.length} players`);
-    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds });
-    startNewRound(code);
+    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
+    startNewRound(code, room);
   });
 
   socket.on("correct-guess", () => {
@@ -189,27 +182,25 @@ io.on("connection", socket => {
     if (!room || !room.gameState.started || room.gameState.finished) return;
     
     const player = room.players.find(p => p.id === socket.id);
-    if (!player || player.guessed) return; // Už uhodl v tomto kole
+    if (!player || player.guessed) return;
     
-    // První kdo uhodne dostane bod
     player.score += 1;
     player.guessed = true;
     room.gameState.finished = true;
     
-    console.log(`${player.name} won round ${room.gameState.round} in room ${code}`);
+    const isFinal = room.gameState.round >= room.gameState.totalRounds;
     
-    // Oznámit všem kdo vyhrál
     io.to(code).emit("round-result", {
       winner: player.name,
       winnerId: socket.id,
       countryName: room.gameState.currentCountry[0],
       scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
-      isFinal: room.gameState.round >= room.gameState.totalRounds
+      isFinal: isFinal
     });
     
-    if (room.gameState.round < room.gameState.totalRounds) {
+    if (!isFinal) {
       room.gameState.round++;
-      setTimeout(() => startNewRound(code), 3000);
+      setTimeout(() => startNewRound(code, room), 3000);
     } else {
       setTimeout(() => endGame(room, code), 3000);
     }
@@ -227,23 +218,23 @@ io.on("connection", socket => {
     player.out = true;
     io.to(code).emit("player-out", { name: player.name, id: socket.id });
     
-    // Kontrola jestli jsou všichni out nebo někdo už uhodl
     const activePlayers = room.players.filter(p => !p.out && !p.guessed);
     const someoneGuessed = room.players.some(p => p.guessed);
     
     if (activePlayers.length === 0 && !someoneGuessed) {
-      // Nikdo neuhodl - remíza kola
       room.gameState.finished = true;
+      const isFinal = room.gameState.round >= room.gameState.totalRounds;
+      
       io.to(code).emit("round-result", {
         winner: null,
         countryName: room.gameState.currentCountry[0],
         scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
-        isFinal: room.gameState.round >= room.gameState.totalRounds
+        isFinal: isFinal
       });
       
-      if (room.gameState.round < room.gameState.totalRounds) {
+      if (!isFinal) {
         room.gameState.round++;
-        setTimeout(() => startNewRound(code), 3000);
+        setTimeout(() => startNewRound(code, room), 3000);
       } else {
         setTimeout(() => endGame(room, code), 3000);
       }
@@ -256,7 +247,6 @@ io.on("connection", socket => {
     const room = rooms.get(code);
     if (!room || room.host !== socket.id) return;
     
-    // Reset pro všechny hráče
     room.players.forEach(p => {
       p.score = 0;
       p.out = false;
@@ -267,12 +257,11 @@ io.on("connection", socket => {
     room.gameState.started = true;
     room.gameState.currentCountry = null;
     
-    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds });
-    startNewRound(code);
+    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
+    startNewRound(code, room);
   });
 
   socket.on("disconnect", () => {
-    console.log("Disconnected:", socket.id);
     const code = socketRooms.get(socket.id);
     if (code && rooms.has(code)) {
       const room = rooms.get(code);
@@ -284,9 +273,7 @@ io.on("connection", socket => {
         
         if (room.players.length === 0) {
           rooms.delete(code);
-          console.log(`Room ${code} deleted - all players left`);
         } else {
-          // Předat hosta někomu jinémumu pokud odešel host
           if (room.host === socket.id && room.players.length > 0) {
             room.host = room.players[0].id;
             io.to(room.players[0].id).emit("became-host");
@@ -295,15 +282,13 @@ io.on("connection", socket => {
             addChatMessage(code, 'Systém', `${player.name} se odpojil`, null);
           }
           
-          updatePlayerList(code);
+          updatePlayerList(code, room);
           
-          // Pokud hra běží a zbývá jen 1 hráč, ukončit hru
           if (room.gameState.started && room.players.length === 1) {
             io.to(code).emit("game-over", { 
-              winner: room.players[0].name, 
-              winnerId: room.players[0].id,
+              winners: [{id: room.players[0].id, name: room.players[0].name}],
               scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
-              reason: "opponent-left"
+              isDraw: false
             });
           }
         }
@@ -331,9 +316,7 @@ io.on("connection", socket => {
     }
   }
 
-  function updatePlayerList(code) {
-    const room = rooms.get(code);
-    if (!room) return;
+  function updatePlayerList(code, room) {
     const list = room.players.map(p => ({ 
       id: p.id, 
       name: p.name, 
@@ -342,11 +325,7 @@ io.on("connection", socket => {
     io.to(code).emit("player-list", { players: list, max: room.maxPlayers });
   }
 
-  function startNewRound(code) {
-    const room = rooms.get(code);
-    if (!room) return;
-    
-    // Reset stavu pro nové kolo
+  function startNewRound(code, room) {
     room.players.forEach(p => {
       p.out = false;
       p.guessed = false;
@@ -357,8 +336,6 @@ io.on("connection", socket => {
     const country = list[Math.floor(Math.random() * list.length)];
     room.gameState.currentCountry = country;
     
-    console.log(`Room ${code} - Round ${room.gameState.round}/5 started, country: ${country[0]}`);
-    
     io.to(code).emit("new-round", {
       round: room.gameState.round,
       totalRounds: room.gameState.totalRounds,
@@ -368,20 +345,16 @@ io.on("connection", socket => {
   }
 
   function endGame(room, code) {
-    // Najít vítěze (nejvyšší skóre)
     const maxScore = Math.max(...room.players.map(p => p.score));
     const winners = room.players.filter(p => p.score === maxScore);
     
-    const result = {
+    io.to(code).emit("game-over", {
       winners: winners.map(w => ({ id: w.id, name: w.name })),
       scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
       isDraw: winners.length > 1
-    };
-    
-    console.log(`Room ${code} - Game over. Winner(s): ${winners.map(w => w.name).join(', ')}`);
-    io.to(code).emit("game-over", result);
+    });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Multiplayer server on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
