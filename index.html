@@ -23,6 +23,7 @@
         .menu-btn { padding: 25px; font-size: 20px; border: none; border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; }
         .menu-btn:active { transform: scale(0.98); }
         .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .menu-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .mp-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 15px; }
         .continent-select { padding: 18px; border-radius: 12px; border: 2px solid #667eea; font-size: 18px; width: 100%; background: white; cursor: pointer; }
         .player-count-select { padding: 15px; border-radius: 12px; border: 2px solid #764ba2; font-size: 16px; width: 100%; background: white; }
@@ -56,6 +57,7 @@
         .player-card .score { font-size: 20px; font-weight: bold; color: #667eea; }
         .round-badge-container { margin-bottom: 15px; }
         .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
+        .timer-badge { background: #e74c3c; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 24px; display: inline-block; font-family: monospace; }
         
         .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
         .input-group { display: flex; gap: 10px; position: relative; }
@@ -115,6 +117,8 @@
         .score-rank { font-size: 24px; font-weight: bold; color: #667eea; margin-right: 10px; }
         .score-name { flex: 1; text-align: left; }
         .score-points { font-weight: bold; font-size: 20px; color: #333; }
+        .rematch-status { font-size: 18px; color: #666; margin: 10px 0; font-weight: 600; }
+        .rematch-status.ready { color: #10b981; }
         
         @media (max-width: 768px) {
             .multiplayer-scoreboard { gap: 5px; }
@@ -125,7 +129,6 @@
             .winners-subtitle { font-size: 18px; }
         }
         
-        /* Oprava pro mobilní klávesnici */
         @media (max-height: 500px) {
             #game-panel .controls {
                 max-height: 40vh;
@@ -142,7 +145,8 @@
         <h2 class="winners-title" id="winners-title">Konec hry!</h2>
         <div class="winners-subtitle" id="winners-subtitle"></div>
         <div class="scores-list" id="final-scores"></div>
-        <button class="menu-btn start-btn" onclick="game.rematch()" id="rematch-btn" style="margin-top: 10px;">🔄 Nová hra</button>
+        <div id="rematch-status" class="rematch-status hidden"></div>
+        <button class="menu-btn" onclick="game.rematch()" id="rematch-btn" style="margin-top: 10px;">🔄 Nová hra</button>
         <button class="small" onclick="game.backToMenu()" style="margin-top: 15px;">🏠 Hlavní menu</button>
     </div>
 </div>
@@ -154,7 +158,7 @@
         <p style="margin-bottom: 30px; color: #666; font-size: 18px;">Multiplayer až pro 8 hráčů!</p>
         
         <div class="menu" id="main-menu">
-            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player</button>
+            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player (5 min)</button>
             
             <div class="mp-section">
                 <p style="font-size: 20px; margin-bottom: 15px; font-weight: 600;">👥 Multiplayer</p>
@@ -247,11 +251,14 @@
             
             <div id="single-stats" class="hidden" style="margin-bottom: 15px;">
                 <div class="round-badge-container">
-                    <div class="round-badge">🏆 <span id="score">0</span> | 🎯 <span id="streak">0</span></div>
+                    <div class="timer-badge" id="timer">05:00</div>
+                </div>
+                <div style="font-size: 18px; font-weight: bold; color: #667eea; margin-top: 5px;">
+                    🏆 <span id="score">0</span> bodů | 🎯 <span id="streak">0</span> série
                 </div>
             </div>
             
-            <div class="round-badge-container">
+            <div id="round-display" class="round-badge-container hidden">
                 <div class="round-badge">Kolo <span id="round">1</span>/<span id="total-rounds">5</span></div>
             </div>
 
@@ -322,15 +329,21 @@ const game = (function() {
         myId: null, players: [], maxPlayers: 4,
         currentRound: 1, totalRounds: 5,
         lastGuess: 0, lastChat: 0, finished: false,
-        guessCooldown: false
+        guessCooldown: false,
+        // Nové pro singleplayer timer
+        timeLeft: 300, // 5 minut v sekundách
+        timerInterval: null,
+        countriesGuessed: 0,
+        // Pro rematch
+        rematchVoted: false
     };
 
     const config = {
         maxAttempts: 5, zoomLevels: [16, 13, 10, 6, 3],
-        zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"]
+        zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"],
+        singlePlayerTime: 300 // 5 minut
     };
 
-    // Ochrana při opuštění stránky během hry
     window.addEventListener('beforeunload', (e) => {
         if (state.gameMode === 'mp' && !state.finished && state.currentRound < state.totalRounds) {
             e.preventDefault();
@@ -397,6 +410,11 @@ const game = (function() {
         document.getElementById(state.isHost ? 'host-panel' : 'join-panel').classList.add('hidden');
         state.totalRounds = data.totalRounds || 5;
         document.getElementById('total-rounds').textContent = state.totalRounds;
+        // Reset rematch stavu
+        state.rematchVoted = false;
+        document.getElementById('rematch-btn').textContent = '🔄 Nová hra';
+        document.getElementById('rematch-btn').disabled = false;
+        document.getElementById('rematch-status').classList.add('hidden');
         startMPGame();
     });
 
@@ -478,8 +496,34 @@ const game = (function() {
             scoresDiv.appendChild(div);
         });
         
-        document.getElementById('rematch-btn').style.display = state.isHost ? 'inline-block' : 'none';
+        // Zobrazit tlačítko pro všechny, ne jen pro hosta
+        const rematchBtn = document.getElementById('rematch-btn');
+        rematchBtn.style.display = 'inline-block';
+        rematchBtn.textContent = '🔄 Nová hra';
+        rematchBtn.disabled = false;
+        state.rematchVoted = false;
+        
         document.getElementById('game-over').classList.add('show');
+    });
+
+    // Nové: Status rematch hlasování
+    socket.on('rematch-status', (data) => {
+        const statusEl = document.getElementById('rematch-status');
+        statusEl.classList.remove('hidden');
+        
+        if (data.ready) {
+            statusEl.textContent = 'Všichni připraveni! Startuji...';
+            statusEl.classList.add('ready');
+        } else {
+            statusEl.textContent = `Připraveni: ${data.votes}/${data.total}`;
+            statusEl.classList.remove('ready');
+        }
+        
+        // Pokud už jsem hlasoval, zneaktivnit tlačítko
+        if (state.rematchVoted) {
+            document.getElementById('rematch-btn').disabled = true;
+            document.getElementById('rematch-btn').textContent = `✓ Připraven (${data.votes}/${data.total})`;
+        }
     });
 
     socket.on('became-host', () => {
@@ -620,6 +664,7 @@ const game = (function() {
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.add('hidden');
         document.getElementById('mp-scoreboard').classList.remove('hidden');
+        document.getElementById('round-display').classList.remove('hidden');
         document.getElementById('game-over').classList.remove('show');
     }
 
@@ -629,7 +674,6 @@ const game = (function() {
         state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
         
-        // Oprava: invalidateSize pro správné vykreslení
         setTimeout(() => {
             if (state.map) {
                 state.map.invalidateSize();
@@ -640,19 +684,90 @@ const game = (function() {
 
     function startSingle() {
         if (!countries.length) { showToast('Načítání...'); return; }
+        
+        // Reset singleplayer stavu
         state.gameMode = 'single';
+        state.score = 0; 
+        state.streak = 0;
+        state.countriesGuessed = 0;
+        state.timeLeft = config.singlePlayerTime;
+        state.finished = false;
+        
+        // UI změny
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.remove('hidden');
         document.getElementById('mp-scoreboard').classList.add('hidden');
-        state.score = 0; state.streak = 0;
+        document.getElementById('round-display').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('show');
+        
         document.getElementById('score').textContent = '0';
         document.getElementById('streak').textContent = '0';
+        
+        // Spustit timer
+        startTimer();
         nextSingleRound();
     }
 
+    function startTimer() {
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        updateTimerDisplay();
+        
+        state.timerInterval = setInterval(() => {
+            state.timeLeft--;
+            updateTimerDisplay();
+            
+            if (state.timeLeft <= 0) {
+                endSingleGame();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const minutes = Math.floor(state.timeLeft / 60);
+        const seconds = state.timeLeft % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('timer').textContent = display;
+        
+        // Zčervenání když málo času
+        if (state.timeLeft < 30) {
+            document.getElementById('timer').style.background = '#e74c3c';
+        } else {
+            document.getElementById('timer').style.background = '#667eea';
+        }
+    }
+
+    function endSingleGame() {
+        clearInterval(state.timerInterval);
+        state.finished = true;
+        setInputEnabled(false);
+        
+        document.getElementById('winners-title').textContent = '⏰ Čas vypršel!';
+        document.getElementById('winners-subtitle').textContent = `Uhodl jsi ${state.countriesGuessed} zemí a získal ${state.score} bodů!`;
+        
+        const scoresDiv = document.getElementById('final-scores');
+        scoresDiv.innerHTML = `
+            <div class="score-item you" style="justify-content: center; font-size: 24px;">
+                <span>🏆 ${state.score} bodů</span>
+            </div>
+            <div style="text-align: center; margin-top: 10px; color: #666;">
+                Správně uhodnuto: ${state.countriesGuessed} zemí<br>
+                Nejdelší série: ${state.streak}
+            </div>
+        `;
+        
+        document.getElementById('rematch-btn').style.display = 'inline-block';
+        document.getElementById('rematch-btn').textContent = '🔄 Hrát znovu';
+        document.getElementById('rematch-btn').disabled = false;
+        document.getElementById('rematch-status').classList.add('hidden');
+        
+        document.getElementById('game-over').classList.add('show');
+    }
+
     function nextSingleRound() {
-        // Oprava: Zabránění stejné zemi dvakrát po sobě
+        if (state.timeLeft <= 0 || state.finished) return;
+        
         let newCountry;
         do {
             newCountry = countries[Math.floor(Math.random() * countries.length)];
@@ -666,13 +781,13 @@ const game = (function() {
     }
 
     function makeGuess() {
-        // Rate limiting na klientovi
         if (state.guessCooldown || Date.now() - state.lastGuess < 300) return;
         state.lastGuess = Date.now();
         state.guessCooldown = true;
         setTimeout(() => state.guessCooldown = false, 300);
         
         if (state.gameMode === 'mp' && state.finished) return;
+        if (state.gameMode === 'single' && state.timeLeft <= 0) return;
         
         const inp = document.getElementById('guessInput');
         const val = inp.value.trim();
@@ -694,13 +809,15 @@ const game = (function() {
 
     function handleSingleCorrect() {
         const pts = Math.floor(50 / (state.attempts + 1));
-        state.score += pts; state.streak++;
+        state.score += pts; 
+        state.streak++;
+        state.countriesGuessed++;
         document.getElementById('score').textContent = state.score;
         document.getElementById('streak').textContent = state.streak;
         document.getElementById('hint').innerHTML = `<span class="success">✓ ${state.currentCountry[0]}! +${pts}b</span>`;
         playSound('success');
         setInputEnabled(false);
-        setTimeout(nextSingleRound, 2000);
+        setTimeout(nextSingleRound, 1500); // Rychlejší než u multiplayeru
     }
 
     function handleWrong() {
@@ -712,7 +829,7 @@ const game = (function() {
                 document.getElementById('streak').textContent = '0';
                 document.getElementById('hint').innerHTML = `<span class="fail">✗ Bylo to ${state.currentCountry[0]}</span>`;
                 setInputEnabled(false);
-                setTimeout(nextSingleRound, 3000);
+                setTimeout(nextSingleRound, 2000);
             } else {
                 state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
                 updateHint();
@@ -734,26 +851,26 @@ const game = (function() {
     }
 
     function rematch() {
-        if (state.gameMode === 'mp' && state.isHost) {
-            socket.emit('request-rematch');
-            document.getElementById('game-over').classList.remove('show');
-            document.getElementById('host-panel').classList.remove('hidden');
-            const btn = document.getElementById('start-game-btn');
-            btn.classList.remove('hidden');
-            btn.textContent = '▶️ SPUSTIT HRU';
-            btn.disabled = false;
-        } else if (state.gameMode === 'single') {
+        if (state.gameMode === 'mp') {
+            if (!state.rematchVoted) {
+                state.rematchVoted = true;
+                socket.emit('request-rematch');
+                document.getElementById('rematch-btn').disabled = true;
+                document.getElementById('rematch-btn').textContent = '⏳ Čekání na ostatní...';
+            }
+        } else {
+            // Single player - restart
             startSingle();
             document.getElementById('game-over').classList.remove('show');
         }
     }
 
     function backToMenu() {
+        if (state.timerInterval) clearInterval(state.timerInterval);
         socket.disconnect();
         location.href = location.pathname;
     }
 
-    // AUTOCOMPLETE - Opraveno pro hledání i v alternativních názvech
     function escapeRegex(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
@@ -771,7 +888,6 @@ const game = (function() {
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
         
-        // Oprava: Hledání i v alternativních názvech (c[3])
         const matches = countries.filter(c => {
             const mainMatch = norm(c[0]).includes(valNorm);
             const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
@@ -860,3 +976,4 @@ const game = (function() {
 </script>
 </body>
 </html>
+   
