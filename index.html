@@ -1,4 +1,3 @@
-<!-- index.html - KOMPLETNÍ VERZE -->
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -125,6 +124,13 @@
             .winners-title { font-size: 24px; }
             .winners-subtitle { font-size: 18px; }
         }
+        
+        /* Oprava pro mobilní klávesnici */
+        @media (max-height: 500px) {
+            #game-panel .controls {
+                max-height: 40vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -204,7 +210,7 @@
             <div id="join-form">
                 <p style="font-size: 20px; margin-bottom: 15px; font-weight: 600;">Zadej kód a jméno:</p>
                 <input type="text" id="join-code" placeholder="Kód místnosti" style="width: 100%; margin-bottom: 10px; padding: 20px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;" maxlength="10">
-                <input type="text" id="join-nickname" placeholder="Tvoje jméno" style="width: 100%; margin-bottom: 20px; padding: 15px; font-size: 18px;" maxlength="20">
+                <input type="text" id="join-nickname" placeholder="Tvoje jméno (max 20 znaků)" style="width: 100%; margin-bottom: 20px; padding: 15px; font-size: 18px;" maxlength="20">
                 <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 15px;">Připojit se</button>
                 <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
                 <p id="join-error" style="color: #e74c3c; margin-top: 15px; min-height: 24px;"></p>
@@ -306,7 +312,8 @@ const game = (function() {
     }
 
     let countries = [];
-    const socket = io({ transports: ['websocket'] });
+    const socket = io({ transports: ['websocket'], reconnection: true, reconnectionAttempts: 5 });
+    
     socket.on('init-data', (data) => { countries = data.countries.world || []; });
     
     const state = {
@@ -314,13 +321,22 @@ const game = (function() {
         score: 0, streak: 0, isHost: false, roomCode: null,
         myId: null, players: [], maxPlayers: 4,
         currentRound: 1, totalRounds: 5,
-        lastGuess: 0, lastChat: 0, finished: false
+        lastGuess: 0, lastChat: 0, finished: false,
+        guessCooldown: false
     };
 
     const config = {
         maxAttempts: 5, zoomLevels: [16, 13, 10, 6, 3],
         zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"]
     };
+
+    // Ochrana při opuštění stránky během hry
+    window.addEventListener('beforeunload', (e) => {
+        if (state.gameMode === 'mp' && !state.finished && state.currentRound < state.totalRounds) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
 
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
@@ -577,7 +593,7 @@ const game = (function() {
 
     function joinGame() {
         const code = document.getElementById('join-code').value;
-        const nickname = document.getElementById('join-nickname').value || 'Hráč';
+        const nickname = document.getElementById('join-nickname').value.slice(0, 20) || 'Hráč';
         if (!code) return;
         document.getElementById('join-error').textContent = 'Připojování...';
         socket.emit('join-room', { code, nickname });
@@ -612,7 +628,14 @@ const game = (function() {
         if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
         state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
-        setTimeout(hideMapLoader, 2000);
+        
+        // Oprava: invalidateSize pro správné vykreslení
+        setTimeout(() => {
+            if (state.map) {
+                state.map.invalidateSize();
+                hideMapLoader();
+            }
+        }, 2000);
     }
 
     function startSingle() {
@@ -629,7 +652,13 @@ const game = (function() {
     }
 
     function nextSingleRound() {
-        state.currentCountry = countries[Math.floor(Math.random() * countries.length)];
+        // Oprava: Zabránění stejné zemi dvakrát po sobě
+        let newCountry;
+        do {
+            newCountry = countries[Math.floor(Math.random() * countries.length)];
+        } while (state.currentCountry && newCountry[0] === state.currentCountry[0] && countries.length > 1);
+        
+        state.currentCountry = newCountry;
         state.attempts = 0;
         initMap();
         updateHint();
@@ -637,8 +666,12 @@ const game = (function() {
     }
 
     function makeGuess() {
-        if (Date.now() - state.lastGuess < 300) return;
+        // Rate limiting na klientovi
+        if (state.guessCooldown || Date.now() - state.lastGuess < 300) return;
         state.lastGuess = Date.now();
+        state.guessCooldown = true;
+        setTimeout(() => state.guessCooldown = false, 300);
+        
         if (state.gameMode === 'mp' && state.finished) return;
         
         const inp = document.getElementById('guessInput');
@@ -720,7 +753,7 @@ const game = (function() {
         location.href = location.pathname;
     }
 
-    // AUTOCOMPLETE
+    // AUTOCOMPLETE - Opraveno pro hledání i v alternativních názvech
     function escapeRegex(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
@@ -736,7 +769,14 @@ const game = (function() {
         }
         
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-        const matches = countries.filter(c => norm(c[0]).includes(norm(val))).slice(0, 5);
+        const valNorm = norm(val);
+        
+        // Oprava: Hledání i v alternativních názvech (c[3])
+        const matches = countries.filter(c => {
+            const mainMatch = norm(c[0]).includes(valNorm);
+            const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
+            return mainMatch || altMatch;
+        }).slice(0, 5);
         
         if (matches.length === 0) {
             list.classList.remove('active');
@@ -820,4 +860,3 @@ const game = (function() {
 </script>
 </body>
 </html>
-
