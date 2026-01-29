@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -9,585 +8,128 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; touch-action: manipulation; }
+        #game-container { flex: 1; display: flex; flex-direction: column; padding: 20px; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+        #map { flex: 1; background: #242424; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 300px; position: relative; z-index: 1; }
+        #map-loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 50px; font-size: 18px; z-index: 1000; display: flex; align-items: center; gap: 15px; }
+        .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
+        .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 55vh; overflow-y: auto; }
+        #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: center; max-height: none; }
+        h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .menu { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 600px; margin: 0 auto; }
+        .menu-btn { padding: 25px; font-size: 20px; border: none; border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; }
+        .menu-btn:active { transform: scale(0.98); }
+        .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .mp-section { margin-top: 30px; padding-top: 30px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 15px; }
+        .continent-select { padding: 18px; border-radius: 12px; border: 2px solid #667eea; font-size: 18px; width: 100%; background: white; cursor: pointer; }
+        .player-count-select { padding: 15px; border-radius: 12px; border: 2px solid #764ba2; font-size: 16px; width: 100%; background: white; }
+        .lobby-info { background: #667eea; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .lobby-info.waiting { background: #f59e0b; color: #000; }
+        .lobby-info.ready { background: #10b981; }
+        .code-display { font-size: 36px; letter-spacing: 8px; font-weight: bold; color: #667eea; text-align: center; padding: 25px; background: #f0f0f0; border-radius: 15px; margin: 20px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; }
+        .player-list { background: #f8f9ff; border-radius: 15px; padding: 15px; margin: 15px 0; max-height: 150px; overflow-y: auto; }
+        .player-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #e0e0e0; }
+        .player-item:last-child { border-bottom: none; }
+        .player-item.you { background: rgba(102, 126, 234, 0.1); border-radius: 8px; }
+        .player-item .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .host-badge { background: #e74c3c; color: white; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+        .start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        .chat-box { background: #f5f5f5; border-radius: 15px; padding: 20px; margin: 20px 0; max-height: 200px; display: flex; flex-direction: column; border: 1px solid #e0e0e0; }
+        .chat-messages { flex: 1; overflow-y: auto; max-height: 150px; margin-bottom: 15px; text-align: left; font-size: 15px; background: white; padding: 15px; border-radius: 10px; word-break: break-word; }
+        .chat-message { padding: 8px 0; border-bottom: 1px solid #eee; }
+        .chat-message:last-child { border-bottom: none; }
+        .chat-message b { color: #667eea; }
+        .chat-message.host b { color: #e74c3c; }
+        .chat-message.system { color: #666; font-style: italic; }
+        .chat-input { display: flex; gap: 10px; }
+        .chat-input input { flex: 1; padding: 12px 20px; border-radius: 25px; border: 1px solid #ddd; font-size: 15px; }
+        .chat-input button { padding: 12px 25px; font-size: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 25px; cursor: pointer; }
+        .multiplayer-scoreboard { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .player-card { background: white; border-radius: 12px; padding: 10px 15px; min-width: 100px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid transparent; }
+        .player-card.active { border-color: #667eea; background: #f8f9ff; }
+        .player-card.out { opacity: 0.5; background: #fee; }
+        .player-card .name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .player-card .score { font-size: 20px; font-weight: bold; color: #667eea; }
+        .round-badge-container { margin-bottom: 15px; }
+        .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
         
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            height: 100vh; 
-            height: 100dvh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden;
-            color: #333;
-        }
-
-        #game-container { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            padding: 10px; 
-            gap: 10px; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            width: 100%; 
-        }
-
-        /* Hlavička */
-        .game-header {
-            background: white;
-            border-radius: 12px;
-            padding: 10px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            z-index: 10;
-        }
-
-        .game-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: #667eea;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .game-stats {
-            display: flex;
-            gap: 15px;
-        }
-
-        .stat-box {
-            background: #f3f4f6;
-            padding: 6px 14px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: #666;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #667eea;
-        }
-
-        /* Nový layout - Input nahoře */
-        .game-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            flex: 1;
-            min-height: 0;
-        }
-
-        /* INPUT SEKCE NAHORU */
-        .input-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 15px 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-
-        .input-row {
-            display: flex;
-            gap: 10px;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        input[type="text"] { 
-            flex: 1; 
-            padding: 14px 18px; 
-            border: 2px solid #e5e7eb; 
-            border-radius: 10px; 
-            font-size: 18px; 
-        }
-
-        input[type="text"]:focus { 
-            border-color: #667eea;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        button { 
-            padding: 14px 28px; 
-            background: #667eea; 
-            color: white; 
-            border: none; 
-            border-radius: 10px; 
-            font-size: 16px; 
-            font-weight: 600; 
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        button:hover { background: #5568d3; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; background: #9ca3af; }
-
+        .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
+        .input-group { display: flex; gap: 10px; position: relative; }
+        input[type="text"] { flex: 1; padding: 18px 25px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 18px; outline: none; }
+        input[type="text"]:focus { border-color: #667eea; }
+        input.shake { animation: shake 0.5s; border-color: #ef4444; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        button { padding: 18px 35px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 18px; font-weight: 600; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc; }
+        button.small { padding: 12px 25px; font-size: 16px; background: #999; }
+        
         .autocomplete-items { 
             position: absolute; 
-            border: 1px solid #e5e7eb; 
+            border: 1px solid #ddd; 
             z-index: 99; 
             top: 100%; 
             left: 0; 
             right: 0; 
-            margin-top: 4px;
-            border-radius: 10px; 
+            margin-top: 5px;
+            border-radius: 15px; 
             overflow: hidden; 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); 
             max-height: 200px; 
             overflow-y: auto; 
             display: none; 
             background: white;
+            text-align: left;
         }
-
         .autocomplete-items.active { display: block; }
-
         .autocomplete-item { 
-            padding: 12px 18px; 
+            padding: 15px 25px; 
             cursor: pointer; 
-            background: white; 
-            border-bottom: 1px solid #f3f4f6; 
+            background-color: #fff; 
+            border-bottom: 1px solid #f0f0f0; 
             font-size: 16px;
         }
-
-        .autocomplete-item:hover { 
-            background: #667eea; 
-            color: white;
-        }
-
-        /* Hint pod inputem */
-        .hint-bar {
-            text-align: center;
-            margin-top: 10px;
-            padding: 8px;
-            background: #f3f4f6;
-            border-radius: 8px;
-            font-weight: 600;
-            color: #667eea;
-            font-size: 14px;
-        }
-
-        .hint-bar.success { 
-            background: #d1fae5; 
-            color: #065f46; 
-        }
-
-        .hint-bar.fail { 
-            background: #fee2e2; 
-            color: #991b1b; 
-        }
-
-        /* Mapa - větší */
-        .map-wrapper {
-            flex: 1;
-            min-height: 0;
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 3px solid white;
-            background: #242424;
-        }
-
-        #map { 
-            width: 100%;
-            height: 100%;
-            background: #242424; 
-        }
-
-        #map-loader { 
-            position: absolute; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            background: rgba(0,0,0,0.8); 
-            color: white; 
-            padding: 20px 30px; 
-            border-radius: 10px; 
-            z-index: 1000; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px;
-        }
-
-        .spinner { 
-            width: 24px; 
-            height: 24px; 
-            border: 3px solid rgba(255,255,255,0.3); 
-            border-top-color: white; 
-            border-radius: 50%; 
-            animation: spin 1s linear infinite; 
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Scoreboard pod mapou */
-        .bottom-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            max-height: 100px;
-            overflow-y: auto;
-        }
-
-        .multiplayer-scoreboard { 
-            display: flex; 
-            gap: 8px; 
-            justify-content: center; 
-        }
-
-        .player-card { 
-            background: #f9fafb; 
-            border-radius: 8px; 
-            padding: 8px 12px; 
-            border: 2px solid transparent;
-            text-align: center;
-            min-width: 70px;
-        }
-
-        .player-card.active { 
-            border-color: #667eea; 
-            background: #eef2ff;
-        }
-
-        .player-card.out { 
-            opacity: 0.5; 
-            background: #fee2e2;
-        }
-
-        .player-card .name { 
-            font-size: 11px; 
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 2px;
-        }
-
-        .player-card .score { 
-            font-size: 18px; 
-            font-weight: 700; 
-            color: #667eea;
-        }
-
-        /* Toast */
-        .toast { 
-            position: fixed; 
-            bottom: 20px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: #1f2937; 
-            color: white; 
-            padding: 12px 24px; 
-            border-radius: 8px; 
-            opacity: 0; 
-            transition: opacity 0.3s; 
-            z-index: 10000; 
-            font-weight: 500;
-        }
-
-        .toast.show { opacity: 1; }
-
-        .hidden { display: none !important; }
-
-        /* Menu */
-        .menu-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .main-title {
-            font-size: 48px;
-            font-weight: 800;
-            color: white;
-            margin-bottom: 8px;
-            text-align: center;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .subtitle {
-            color: rgba(255,255,255,0.9);
-            font-size: 18px;
-            margin-bottom: 30px;
-        }
-
-        .menu-card {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .menu-btn { 
-            padding: 16px; 
-            font-size: 16px; 
-            border: none; 
-            border-radius: 10px; 
-            background: #667eea; 
-            color: white; 
-            cursor: pointer; 
-            width: 100%; 
-            font-weight: 600;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .menu-btn:hover { background: #5568d3; }
-        .menu-btn.single { background: #10b981; }
-        .menu-btn.single:hover { background: #059669; }
-
-        .mp-section { 
-            margin-top: 20px; 
-            padding-top: 20px; 
-            border-top: 2px solid #e5e7eb; 
-        }
-
-        .section-title {
-            font-size: 12px;
-            color: #666;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-
-        .select-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        select { 
-            padding: 12px; 
-            border-radius: 8px; 
-            border: 2px solid #e5e7eb; 
-            font-size: 14px; 
-            background: white;
-            flex: 1;
-        }
-
-        /* Lobby */
-        .lobby-card {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            width: 100%;
-            max-width: 600px;
-        }
-
-        .lobby-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 15px;
-        }
-
-        .lobby-status.waiting { background: #fef3c7; color: #92400e; }
-        .lobby-status.ready { background: #d1fae5; color: #065f46; }
-
-        .code-display { 
-            font-size: 36px; 
-            letter-spacing: 8px; 
-            font-weight: 700; 
-            color: #667eea; 
-            text-align: center; 
-            padding: 20px; 
-            background: #f3f4f6; 
-            border-radius: 8px; 
-            margin: 15px 0; 
-            border: 2px dashed #667eea; 
-            font-family: monospace;
-            cursor: pointer;
-        }
-
-        .player-list { 
-            background: #f9fafb; 
-            border-radius: 8px; 
-            padding: 12px; 
-            margin: 15px 0; 
-            max-height: 150px; 
-            overflow-y: auto; 
-        }
-
-        .player-item { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 8px 12px; 
-            border-bottom: 1px solid #e5e7eb; 
-            border-radius: 6px;
-        }
-
-        .player-item:last-child { border-bottom: none; }
-        .player-item.you { background: #eef2ff; }
-
-        .player-item .name { 
-            font-weight: 600; 
-            display: flex; 
-            align-items: center; 
-            gap: 6px; 
-        }
-
-        .host-badge { 
-            background: #ef4444; 
-            color: white; 
-            font-size: 10px; 
-            padding: 2px 8px; 
-            border-radius: 10px;
-        }
-
-        .chat-box { 
-            background: #f9fafb; 
-            border-radius: 8px; 
-            padding: 12px; 
-            margin: 15px 0; 
-        }
-
-        .chat-messages { 
-            height: 80px; 
-            overflow-y: auto; 
-            margin-bottom: 10px; 
-            background: white;
-            padding: 10px; 
-            border-radius: 6px; 
-            border: 1px solid #e5e7eb;
-            font-size: 14px;
-        }
-
-        .chat-input { display: flex; gap: 8px; }
-        .chat-input input { flex: 1; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 6px; }
-        .chat-input button { padding: 8px 16px; font-size: 14px; }
-
-        /* Game Over + Hlasovani */
-        #game-over { 
-            position: fixed; 
-            top: 0; left: 0; right: 0; bottom: 0; 
-            background: rgba(0,0,0,0.8); 
-            display: none; 
-            justify-content: center; 
-            align-items: center; 
-            z-index: 9999; 
-            padding: 20px; 
-        }
-
-        #game-over.show { display: flex; }
-
-        .game-over-box { 
-            background: white; 
-            padding: 30px; 
-            border-radius: 16px; 
-            text-align: center; 
-            max-width: 500px; 
-            width: 100%; 
-            max-height: 90vh; 
-            overflow-y: auto;
-        }
-
-        .winners-title { font-size: 32px; font-weight: 800; color: #667eea; margin-bottom: 10px; }
-        .winners-subtitle { font-size: 18px; color: #666; margin-bottom: 20px; }
-
-        .scores-list { text-align: left; margin: 20px 0; max-height: 200px; overflow-y: auto; }
+        .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
+        .autocomplete-item strong { font-weight: bold; }
         
-        .score-item { 
-            padding: 12px; 
-            margin: 8px 0; 
-            background: #f9fafb; 
-            border-radius: 8px; 
-            display: flex; 
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .score-item.winner { background: #d1fae5; border: 2px solid #10b981; }
-        .score-item.you { background: #eef2ff; border: 2px solid #667eea; }
-
-        /* Hlasovani */
-        .voting-section {
-            margin: 20px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 12px;
-            border: 2px solid #e5e7eb;
-        }
-
-        .voting-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            color: #374151;
-        }
-
-        .vote-count {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 15px;
-            font-size: 24px;
-        }
-
-        .vote-yes { color: #10b981; font-weight: 700; }
-        .vote-no { color: #ef4444; font-weight: 700; }
-
-        .vote-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .vote-btn {
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: 700;
-            border: none;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .vote-btn:hover { transform: scale(1.05); }
-        .vote-btn.yes { background: #10b981; color: white; }
-        .vote-btn.no { background: #ef4444; color: white; }
-        .vote-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        .vote-status {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #666;
-        }
-
+        #hint { font-weight: 600; color: #667eea; margin-top: 15px; font-size: 20px; min-height: 50px; line-height: 1.4; }
+        .success { color: #10b981; font-size: 22px; font-weight: bold; }
+        .fail { color: #ef4444; } 
+        .waiting { color: #f59e0b; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 30px; opacity: 0; transition: opacity 0.3s; z-index: 10000; pointer-events: none; font-size: 16px; }
+        .toast.show { opacity: 1; }
         .hidden { display: none !important; }
-
+        
+        #game-over { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; color: white; padding: 20px; }
+        #game-over.show { display: flex; }
+        .game-over-box { background: white; color: #333; padding: 40px; border-radius: 25px; text-align: center; max-width: 500px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .winners-title { font-size: 32px; margin-bottom: 10px; font-weight: bold; color: #333; }
+        .winners-subtitle { font-size: 24px; margin-bottom: 20px; color: #667eea; font-weight: 600; }
+        .scores-list { text-align: left; margin: 20px 0; max-height: 300px; overflow-y: auto; }
+        .score-item { padding: 12px; margin: 8px 0; background: #f8f9ff; border-radius: 10px; display: flex; justify-content: space-between; font-size: 18px; align-items: center; }
+        .score-item.winner { background: #d4edda; border: 2px solid #10b981; font-weight: bold; }
+        .score-item.you { background: #e7e3f8; border: 2px solid #667eea; }
+        .score-rank { font-size: 24px; font-weight: bold; color: #667eea; margin-right: 10px; }
+        .score-name { flex: 1; text-align: left; }
+        .score-points { font-weight: bold; font-size: 20px; color: #333; }
+        
         @media (max-width: 768px) {
-            .main-title { font-size: 36px; }
-            .input-row { flex-direction: column; }
-            .input-row button { width: 100%; }
-            .game-layout { gap: 8px; }
-            .input-panel { padding: 12px; }
+            .multiplayer-scoreboard { gap: 5px; }
+            .player-card { min-width: 80px; padding: 8px; }
+            .input-group { flex-direction: column; }
+            .code-display { font-size: 28px; letter-spacing: 4px; }
+            .winners-title { font-size: 24px; }
+            .winners-subtitle { font-size: 18px; }
+        }
+        
+        /* Oprava pro mobilní klávesnici */
+        @media (max-height: 500px) {
+            #game-panel .controls {
+                max-height: 40vh;
+            }
         }
     </style>
 </head>
@@ -600,41 +142,25 @@
         <h2 class="winners-title" id="winners-title">Konec hry!</h2>
         <div class="winners-subtitle" id="winners-subtitle"></div>
         <div class="scores-list" id="final-scores"></div>
-        
-        <!-- Hlasovani -->
-        <div id="voting-section" class="voting-section hidden">
-            <div class="voting-title">🗳️ Chcete hrát další hru?</div>
-            <div class="vote-count">
-                <span class="vote-yes">✅ <span id="yes-count">0</span></span>
-                <span class="vote-no">❌ <span id="no-count">0</span></span>
-            </div>
-            <div class="vote-buttons" id="vote-buttons">
-                <button class="vote-btn yes" onclick="game.vote(true)">✅ Ano</button>
-                <button class="vote-btn no" onclick="game.vote(false)">❌ Ne</button>
-            </div>
-            <div class="vote-status" id="vote-status">Hlasování probíhá...</div>
-        </div>
-
-        <div id="post-game-buttons">
-            <button class="menu-btn" onclick="game.backToMenu()" style="margin-top: 10px;">🏠 Hlavní menu</button>
-        </div>
+        <button class="menu-btn start-btn" onclick="game.rematch()" id="rematch-btn" style="margin-top: 10px;">🔄 Nová hra</button>
+        <button class="small" onclick="game.backToMenu()" style="margin-top: 15px;">🏠 Hlavní menu</button>
     </div>
 </div>
 
 <div id="game-container">
     <!-- MENU -->
-    <div id="menu" class="menu-container">
-        <h1 class="main-title">🌍 GeoGuessr</h1>
-        <p class="subtitle">Multiplayer až pro 8 hráčů | Singleplayer nekonečný</p>
+    <div id="menu" class="controls">
+        <h1>🌍 GeoGuessr</h1>
+        <p style="margin-bottom: 30px; color: #666; font-size: 18px;">Multiplayer až pro 8 hráčů!</p>
         
-        <div class="menu-card" id="main-menu">
-            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player (Nekonečný)</button>
+        <div class="menu" id="main-menu">
+            <button class="menu-btn single" onclick="game.startSingle()">👤 Single Player</button>
             
             <div class="mp-section">
-                <div class="section-title">👥 Multiplayer</div>
+                <p style="font-size: 20px; margin-bottom: 15px; font-weight: 600;">👥 Multiplayer</p>
                 
-                <div class="select-row">
-                    <select id="continent-select">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <select id="continent-select" class="continent-select" style="flex: 2;">
                         <option value="world">🌍 Celý svět</option>
                         <option value="europe">🇪🇺 Evropa</option>
                         <option value="asia">🌏 Asie</option>
@@ -642,7 +168,7 @@
                         <option value="africa">🌍 Afrika</option>
                         <option value="oceania">🌏 Oceánie</option>
                     </select>
-                    <select id="max-players">
+                    <select id="max-players" class="player-count-select" style="flex: 1;">
                         <option value="2">2 hráči</option>
                         <option value="3">3 hráči</option>
                         <option value="4" selected>4 hráči</option>
@@ -652,20 +178,18 @@
                 </div>
                 
                 <button class="menu-btn" onclick="game.startHost()">🎮 Vytvořit hru</button>
-                <button class="menu-btn" onclick="game.showJoin()" style="background: #ec4899;">🔗 Připojit se</button>
+                <button class="menu-btn" onclick="game.showJoin()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🔗 Připojit se ke hře</button>
             </div>
         </div>
         
         <!-- HOST LOBBY -->
-        <div id="host-panel" class="lobby-card hidden">
-            <div style="text-align: center;">
-                <div id="host-lobby-info" class="lobby-status waiting">
-                    ⏳ Čekání na hráče... (<span id="player-count">1</span>/<span id="max-count">4</span>)
-                </div>
+        <div id="host-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
+            <div id="host-lobby-info" class="lobby-info waiting">
+                Čekání na hráče... (<span id="player-count">1</span>/<span id="max-count">4</span>)
             </div>
             
             <div class="code-display" id="room-code" onclick="game.copyLink()">----</div>
-            <p style="color: #666; font-size: 12px; text-align: center; margin-bottom: 15px;">Klikni pro zkopírování</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Klikni pro zkopírování odkazu</p>
             
             <div class="player-list" id="lobby-player-list"></div>
             
@@ -677,24 +201,24 @@
                 </div>
             </div>
             
-            <button id="start-game-btn" class="menu-btn hidden" onclick="game.startGameFromLobby()" style="background: #10b981;">▶️ SPUSTIT HRU</button>
-            <button onclick="game.showMain()" class="menu-btn" style="background: #6b7280; margin-top: 10px;">Zrušit</button>
+            <button id="start-game-btn" class="menu-btn start-btn hidden" onclick="game.startGameFromLobby()">▶️ SPUSTIT HRU</button>
+            <button onclick="game.showMain()" class="small" style="margin-top: 15px; width: 100%;">Zrušit</button>
         </div>
         
         <!-- JOIN LOBBY -->
-        <div id="join-panel" class="lobby-card hidden">
+        <div id="join-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
             <div id="join-form">
-                <div class="section-title" style="text-align: center; font-size: 14px;">🔑 Zadej kód a jméno</div>
-                <input type="text" id="join-code" placeholder="KÓD MÍSTNOSTI" style="width: 100%; margin-bottom: 10px; padding: 15px; text-align: center; font-size: 20px; letter-spacing: 4px; font-weight: 700; text-transform: uppercase; border: 2px dashed #667eea; border-radius: 8px;" maxlength="10">
-                <input type="text" id="join-nickname" placeholder="Tvoje jméno" style="width: 100%; margin-bottom: 15px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;" maxlength="20">
-                <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 10px;">🚀 Připojit se</button>
-                <button onclick="game.showMain()" class="menu-btn" style="background: #6b7280;">Zpět</button>
-                <p id="join-error" style="color: #ef4444; margin-top: 10px; font-size: 14px; text-align: center;"></p>
+                <p style="font-size: 20px; margin-bottom: 15px; font-weight: 600;">Zadej kód a jméno:</p>
+                <input type="text" id="join-code" placeholder="Kód místnosti" style="width: 100%; margin-bottom: 10px; padding: 20px; text-align: center; font-size: 20px; letter-spacing: 3px; font-weight: bold; text-transform: uppercase;" maxlength="10">
+                <input type="text" id="join-nickname" placeholder="Tvoje jméno (max 20 znaků)" style="width: 100%; margin-bottom: 20px; padding: 15px; font-size: 18px;" maxlength="20">
+                <button onclick="game.joinGame()" style="width: 100%; margin-bottom: 15px;">Připojit se</button>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Zpět</button>
+                <p id="join-error" style="color: #e74c3c; margin-top: 15px; min-height: 24px;"></p>
             </div>
             
             <div id="guest-lobby" class="hidden">
-                <div class="lobby-status waiting" style="width: 100%; justify-content: center;">
-                    ⏳ Čekání na hosta... (<span id="guest-player-count">1</span>/<span id="guest-max-count">4</span>)
+                <div class="lobby-info waiting">
+                    Čekání na hosta... (<span id="guest-player-count">1</span>/<span id="guest-max-count">4</span>)
                 </div>
                 
                 <div class="player-list" id="guest-lobby-player-list"></div>
@@ -707,59 +231,40 @@
                     </div>
                 </div>
                 
-                <button onclick="game.showMain()" class="menu-btn" style="background: #6b7280; width: 100%;">Odpojit se</button>
+                <button onclick="game.showMain()" class="small" style="width: 100%;">Odpojit se</button>
             </div>
         </div>
     </div>
 
     <!-- GAME PANEL -->
     <div id="game-panel" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
-        <div class="game-header">
-            <div class="game-title">🌍 GeoGuessr</div>
-            <div class="game-stats">
-                <div class="stat-box" id="round-stat">
-                    <div class="stat-label">Kolo</div>
-                    <div class="stat-value" id="round-display">∞</div>
-                </div>
-                <div class="stat-box" id="score-stat">
-                    <div class="stat-label">Skóre</div>
-                    <div class="stat-value" id="score">0</div>
-                </div>
-                <div class="stat-box hidden" id="streak-stat">
-                    <div class="stat-label">Série</div>
-                    <div class="stat-value" id="streak">0</div>
-                </div>
-                <div class="stat-box" id="attempts-stat">
-                    <div class="stat-label">Pokusů</div>
-                    <div class="stat-value"><span id="attempts">0</span>/5</div>
-                </div>
-            </div>
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="map-loader" class="hidden"><div class="spinner"></div><span>Načítání...</span></div>
         </div>
-
-        <!-- Nový layout: Input nahoře, mapa uprostřed -->
-        <div class="game-layout">
-            <!-- INPUT NAHORE -->
-            <div class="input-panel">
-                <div style="max-width: 600px; margin: 0 auto; position: relative;">
-                    <div class="input-row">
-                        <input type="text" id="guessInput" placeholder="Napiš název země..." autocomplete="off" disabled>
-                        <button onclick="game.makeGuess()" id="guessBtn" disabled>Hádat</button>
-                    </div>
-                    <div id="autocomplete-list" class="autocomplete-items"></div>
+        <div class="controls" style="max-height: 55vh;">
+            <div id="mp-scoreboard" class="multiplayer-scoreboard hidden"></div>
+            
+            <div id="single-stats" class="hidden" style="margin-bottom: 15px;">
+                <div class="round-badge-container">
+                    <div class="round-badge">🏆 <span id="score">0</span> | 🎯 <span id="streak">0</span></div>
                 </div>
-                <div class="hint-bar" id="hint">Čekání na hru...</div>
-            </div>
-
-            <!-- MAPA UPREDSTRED -->
-            <div class="map-wrapper">
-                <div id="map"></div>
-                <div id="map-loader" class="hidden"><div class="spinner"></div><span>Načítání...</span></div>
             </div>
             
-            <!-- Scoreboard dole -->
-            <div class="bottom-panel" id="bottom-panel" style="display: none;">
-                <div id="mp-scoreboard" class="multiplayer-scoreboard"></div>
+            <div class="round-badge-container">
+                <div class="round-badge">Kolo <span id="round">1</span>/<span id="total-rounds">5</span></div>
             </div>
+
+            <div class="input-wrapper">
+                <div class="input-group">
+                    <input type="text" id="guessInput" placeholder="Napiš zemi..." autocomplete="off" disabled>
+                    <button onclick="game.makeGuess()" id="guessBtn" disabled>Hádat</button>
+                </div>
+                <div id="autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            
+            <p id="hint">Příprava hry...</p>
+            <button onclick="game.backToMenu()" class="small" style="margin-top: 10px;">← Odpojit se</button>
         </div>
     </div>
 </div>
@@ -797,6 +302,7 @@ const game = (function() {
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
             } else {
                 osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime + 0.1);
                 gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
             }
@@ -812,16 +318,11 @@ const game = (function() {
     
     const state = {
         map: null, currentCountry: null, attempts: 0, gameMode: null,
-        score: 0, streak: 0, totalScore: 0, gamesPlayed: 0,
-        isHost: false, roomCode: null,
+        score: 0, streak: 0, isHost: false, roomCode: null,
         myId: null, players: [], maxPlayers: 4,
         currentRound: 1, totalRounds: 5,
         lastGuess: 0, lastChat: 0, finished: false,
-        guessCooldown: false,
-        // Pro hlasovani
-        hasVoted: false,
-        votesYes: 0,
-        votesNo: 0
+        guessCooldown: false
     };
 
     const config = {
@@ -829,6 +330,7 @@ const game = (function() {
         zoomLabels: ["Velmi detailní","Detailní","Město","Region","Kontinent"]
     };
 
+    // Ochrana při opuštění stránky během hry
     window.addEventListener('beforeunload', (e) => {
         if (state.gameMode === 'mp' && !state.finished && state.currentRound < state.totalRounds) {
             e.preventDefault();
@@ -836,7 +338,6 @@ const game = (function() {
         }
     });
 
-    // Socket events
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
         state.isHost = true;
@@ -850,12 +351,10 @@ const game = (function() {
     });
 
     socket.on('player-joined', (data) => {
-        showToast(`${data.name} se připojil!`);
+        showToast(`${escapeHtml(data.name)} se připojil! (${data.count}/${data.max})`);
         document.getElementById('player-count').textContent = data.count;
         if (state.isHost && data.count >= 2) {
             document.getElementById('start-game-btn').classList.remove('hidden');
-            document.getElementById('host-lobby-info').classList.remove('waiting');
-            document.getElementById('host-lobby-info').classList.add('ready');
         }
     });
 
@@ -863,6 +362,9 @@ const game = (function() {
         if (state.isHost) {
             document.getElementById('player-count').textContent = data.players.length;
             updateLobbyPlayerList(data.players, data.max);
+            if (data.players.length >= 2) {
+                document.getElementById('start-game-btn').classList.remove('hidden');
+            }
         } else {
             document.getElementById('guest-player-count').textContent = data.players.length;
             document.getElementById('guest-max-count').textContent = data.max;
@@ -894,28 +396,24 @@ const game = (function() {
     socket.on('game-started', (data) => {
         document.getElementById(state.isHost ? 'host-panel' : 'join-panel').classList.add('hidden');
         state.totalRounds = data.totalRounds || 5;
-        state.currentRound = 1;
-        state.votesYes = 0;
-        state.votesNo = 0;
-        state.hasVoted = false;
+        document.getElementById('total-rounds').textContent = state.totalRounds;
         startMPGame();
     });
 
     socket.on('new-round', (data) => {
         state.currentCountry = data.country;
         state.currentRound = data.round;
+        state.totalRounds = data.totalRounds;
         state.finished = false;
         state.attempts = 0;
         state.players = data.players;
         updateScoreboard();
         document.getElementById('round').textContent = state.currentRound;
-        document.getElementById('attempts').textContent = '0';
-        document.getElementById('hint').textContent = `Kolo ${state.currentRound}/${state.totalRounds} - Hledej na mapě!`;
-        document.getElementById('hint').className = 'hint-bar';
+        document.getElementById('hint').textContent = `Kolo ${state.currentRound} začíná!`;
         initMap();
         setTimeout(() => {
             setInputEnabled(true);
-            updateAttemptDisplay();
+            updateHint();
         }, 1000);
     });
 
@@ -923,14 +421,13 @@ const game = (function() {
         state.finished = true;
         setInputEnabled(false);
         const hint = document.getElementById('hint');
+        hint.innerHTML = '';
         
         if (data.winner) {
-            hint.innerHTML = `🏆 ${escapeHtml(data.winner)} uhodl: ${escapeHtml(data.countryName)}`;
-            hint.className = 'hint-bar success';
+            hint.appendChild(createEl('span', 'success', `🏆 ${escapeHtml(data.winner)} uhodl zemi! Bylo to ${escapeHtml(data.countryName)}`));
             playSound('success');
         } else {
-            hint.innerHTML = `❌ Nikdo neuhodl: ${escapeHtml(data.countryName)}`;
-            hint.className = 'hint-bar fail';
+            hint.appendChild(createEl('span', 'fail', `Nikdo neuhodl! Bylo to ${escapeHtml(data.countryName)}`));
             playSound('error');
         }
         
@@ -939,44 +436,50 @@ const game = (function() {
     });
 
     socket.on('player-out', (data) => {
-        showToast(`${data.name} došly pokusy!`);
+        showToast(`${escapeHtml(data.name)} došly pokusy!`);
         const playerCard = document.querySelector(`[data-player-id="${data.id}"]`);
         if (playerCard) playerCard.classList.add('out');
     });
 
     socket.on('game-over', (data) => {
-        showGameOver(data);
-    });
-
-    // NOVE: Hlasovani
-    socket.on('vote-update', (data) => {
-        state.votesYes = data.yes;
-        state.votesNo = data.no;
-        document.getElementById('yes-count').textContent = state.votesYes;
-        document.getElementById('no-count').textContent = state.votesNo;
+        let title, subtitle;
         
-        const totalVotes = state.votesYes + state.votesNo;
-        const totalPlayers = state.players.length;
-        
-        document.getElementById('vote-status').textContent = 
-            `Hlasovalo ${totalVotes}/${totalPlayers} hráčů`;
-        
-        // Kontrola vysledku hlasovani
-        if (state.votesNo > 0) {
-            // Someone voted no - end it
-            document.getElementById('vote-status').textContent = 'Hlasování skončilo - vracení do menu...';
-            setTimeout(() => {
-                game.backToMenu();
-            }, 2000);
-        } else if (state.votesYes === totalPlayers && totalPlayers > 0) {
-            // All voted yes
-            document.getElementById('vote-status').textContent = 'Všichni chtějí hrát! Startuji...';
-            setTimeout(() => {
-                if (state.isHost) {
-                    socket.emit('start-rematch');
-                }
-            }, 1500);
+        if (data.isDraw) {
+            title = 'Remíza!';
+            subtitle = 'Vítězové: ' + data.winners.map(w => w.name).join(', ');
+        } else if (data.winners && data.winners.length === 1) {
+            const isMe = data.winners[0].id === state.myId;
+            title = isMe ? '🎉 Vyhrál jsi!' : '🏆 Konec hry';
+            subtitle = isMe ? 'Jsi šampion!' : `Vítěz: ${data.winners[0].name}`;
+        } else {
+            title = 'Konec hry!';
+            subtitle = '';
         }
+        
+        document.getElementById('winners-title').textContent = title;
+        document.getElementById('winners-subtitle').textContent = subtitle;
+        
+        const scoresDiv = document.getElementById('final-scores');
+        scoresDiv.innerHTML = '';
+        
+        const sorted = [...data.scores].sort((a,b) => b.score - a.score);
+        sorted.forEach((p, idx) => {
+            const isWinner = data.winners.some(w => w.id === p.id);
+            const isMe = p.id === state.myId;
+            const div = createEl('div', `score-item ${isWinner ? 'winner' : ''} ${isMe ? 'you' : ''}`);
+            
+            const rank = createEl('span', 'score-rank', `${idx + 1}.`);
+            const name = createEl('span', 'score-name', escapeHtml(p.name) + (isMe ? ' (Ty)' : ''));
+            const points = createEl('span', 'score-points', `${p.score} bodů`);
+            
+            div.appendChild(rank);
+            div.appendChild(name);
+            div.appendChild(points);
+            scoresDiv.appendChild(div);
+        });
+        
+        document.getElementById('rematch-btn').style.display = state.isHost ? 'inline-block' : 'none';
+        document.getElementById('game-over').classList.add('show');
     });
 
     socket.on('became-host', () => {
@@ -985,7 +488,7 @@ const game = (function() {
     });
 
     socket.on('join-error', (msg) => {
-        document.getElementById('join-error').textContent = msg;
+        document.getElementById('join-error').textContent = escapeHtml(msg);
     });
 
     function updateLobbyPlayerList(players, max) {
@@ -1025,7 +528,7 @@ const game = (function() {
         state.players.forEach(p => {
             const card = createEl('div', 'player-card');
             card.setAttribute('data-player-id', p.id);
-            if (p.id === state.myId) card.classList.add('active');
+            if (p.id === state.myId) card.classList.add('you', 'active');
             card.appendChild(createEl('div', 'name', escapeHtml(p.name)));
             card.appendChild(createEl('div', 'score', p.score));
             board.appendChild(card);
@@ -1034,7 +537,7 @@ const game = (function() {
 
     function showToast(msg) {
         const t = document.getElementById('toast');
-        t.textContent = msg;
+        t.textContent = escapeHtml(msg);
         t.classList.add('show');
         setTimeout(() => t.classList.remove('show'), 3000);
     }
@@ -1053,177 +556,23 @@ const game = (function() {
         container.scrollTop = container.scrollHeight;
     }
 
-    function showGameOver(data) {
-        let title, subtitle;
-        
-        if (data.isDraw) {
-            title = '🤝 Remíza!';
-            subtitle = 'Vítězové: ' + data.winners.map(w => w.name).join(', ');
-        } else if (data.winners && data.winners.length === 1) {
-            const isMe = data.winners[0].id === state.myId;
-            title = isMe ? '🏆 Vyhrál jsi!' : '🎉 Konec hry';
-            subtitle = isMe ? 'Jsi šampion!' : `Vítěz: ${data.winners[0].name}`;
-        } else {
-            title = 'Konec hry!';
-            subtitle = '';
-        }
-        
-        document.getElementById('winners-title').textContent = title;
-        document.getElementById('winners-subtitle').textContent = subtitle;
-        
-        const scoresDiv = document.getElementById('final-scores');
-        scoresDiv.innerHTML = '';
-        
-        const sorted = [...data.scores].sort((a,b) => b.score - a.score);
-        sorted.forEach((p, idx) => {
-            const isWinner = data.winners.some(w => w.id === p.id);
-            const isMe = p.id === state.myId;
-            const div = createEl('div', `score-item ${isWinner ? 'winner' : ''} ${isMe ? 'you' : ''}`);
-            
-            const rank = createEl('span', 'score-rank', `${idx + 1}.`);
-            const name = createEl('span', 'score-name', escapeHtml(p.name) + (isMe ? ' (Ty)' : ''));
-            const points = createEl('span', 'score-points', `${p.score}b`);
-            
-            div.appendChild(rank);
-            div.appendChild(name);
-            div.appendChild(points);
-            scoresDiv.appendChild(div);
-        });
-        
-        // Zobrazit hlasovani jen v MP
-        if (state.gameMode === 'mp') {
-            document.getElementById('voting-section').classList.remove('hidden');
-            document.getElementById('yes-count').textContent = '0';
-            document.getElementById('no-count').textContent = '0';
-            document.getElementById('vote-status').textContent = 'Hlasujte!';
-            document.getElementById('vote-buttons').style.display = 'flex';
-            state.hasVoted = false;
-        } else {
-            // SP - tlacitko pro dalsi hru
-            const btn = createEl('button', 'menu-btn', '🔄 Další hra');
-            btn.onclick = () => {
-                document.getElementById('game-over').classList.remove('show');
-                startSingle();
-            };
-            document.getElementById('post-game-buttons').prepend(btn);
-        }
-        
-        document.getElementById('game-over').classList.add('show');
+    function showMain() {
+        socket.disconnect();
+        location.reload();
     }
 
-    // Verejne metody
-    return {
-        showMain() {
-            socket.disconnect();
-            location.reload();
-        },
+    function showJoin() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('join-panel').classList.remove('hidden');
+        document.getElementById('join-code').focus();
+    }
 
-        showJoin() {
-            document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('join-panel').classList.remove('hidden');
-            document.getElementById('join-code').focus();
-        },
+    function copyLink() {
+        if (!state.roomCode) return;
+        const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
+        navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!'));
+    }
 
-        copyLink() {
-            if (!state.roomCode) return;
-            const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomCode)}`;
-            navigator.clipboard.writeText(link).then(() => showToast('Odkaz zkopírován!'));
-        },
-
-        startHost() {
-            const continent = document.getElementById('continent-select').value;
-            const maxPlayers = parseInt(document.getElementById('max-players').value);
-            socket.emit('create-room', { continent, maxPlayers });
-        },
-
-        joinGame() {
-            const code = document.getElementById('join-code').value;
-            const nickname = document.getElementById('join-nickname').value.slice(0, 20) || 'Hráč';
-            if (!code) return;
-            document.getElementById('join-error').textContent = 'Připojování...';
-            socket.emit('join-room', { code, nickname });
-        },
-
-        startGameFromLobby() {
-            socket.emit('start-game');
-            document.getElementById('start-game-btn').textContent = '⏳ Načítání...';
-            document.getElementById('start-game-btn').disabled = true;
-        },
-
-        sendChat(role) {
-            const inp = document.getElementById(role === 'host' ? 'host-chat-input' : 'guest-chat-input');
-            const text = inp.value.trim();
-            if (!text || Date.now() - state.lastChat < 500) return;
-            state.lastChat = Date.now();
-            socket.emit('chat-message', text);
-            inp.value = '';
-        },
-
-        vote(yes) {
-            if (state.hasVoted) return;
-            state.hasVoted = true;
-            socket.emit('vote-rematch', { vote: yes });
-            
-            document.getElementById('vote-buttons').style.display = 'none';
-            document.getElementById('vote-status').textContent = yes ? 
-                'Hlasoval jsi ANO ✅' : 'Hlasoval jsi NE ❌';
-        },
-
-        startSingle() {
-            if (!countries.length) { showToast('Načítání...'); return; }
-            state.gameMode = 'single';
-            state.totalScore = 0;
-            state.gamesPlayed = 0;
-            state.currentRound = 1;
-            
-            document.getElementById('menu').classList.add('hidden');
-            document.getElementById('game-panel').classList.remove('hidden');
-            document.getElementById('bottom-panel').style.display = 'none';
-            document.getElementById('round-stat').querySelector('.stat-label').textContent = 'Hry';
-            document.getElementById('round-display').textContent = '0';
-            document.getElementById('streak-stat').classList.remove('hidden');
-            
-            nextSingleRound();
-        },
-
-        makeGuess() {
-            if (state.guessCooldown || Date.now() - state.lastGuess < 300) return;
-            state.lastGuess = Date.now();
-            state.guessCooldown = true;
-            setTimeout(() => state.guessCooldown = false, 300);
-            
-            const inp = document.getElementById('guessInput');
-            const val = inp.value.trim();
-            if (!val) { 
-                inp.style.borderColor = '#ef4444';
-                setTimeout(() => inp.style.borderColor = '#e5e7eb', 500);
-                return; 
-            }
-
-            const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-            const correct = norm(val) === norm(state.currentCountry[0]) || state.currentCountry[3].some(a => norm(val) === norm(a));
-            
-            if (correct) {
-                handleSingleCorrect();
-            } else {
-                handleSingleWrong();
-            }
-        },
-
-        backToMenu() {
-            socket.disconnect();
-            location.href = location.pathname;
-        },
-
-        rematch() {
-            // Pro starou verzi kompatibility, ale pouzivame nove hlasovani
-            if (state.isHost) {
-                socket.emit('request-rematch');
-            }
-        }
-    };
-
-    // Interni funkce
     function setInputEnabled(en) {
         document.getElementById('guessInput').disabled = !en;
         document.getElementById('guessBtn').disabled = !en;
@@ -1236,12 +585,51 @@ const game = (function() {
     function showMapLoader() { document.getElementById('map-loader').classList.remove('hidden'); }
     function hideMapLoader() { document.getElementById('map-loader').classList.add('hidden'); }
 
+    function startHost() {
+        const continent = document.getElementById('continent-select').value;
+        const maxPlayers = parseInt(document.getElementById('max-players').value);
+        socket.emit('create-room', { continent, maxPlayers });
+    }
+
+    function joinGame() {
+        const code = document.getElementById('join-code').value;
+        const nickname = document.getElementById('join-nickname').value.slice(0, 20) || 'Hráč';
+        if (!code) return;
+        document.getElementById('join-error').textContent = 'Připojování...';
+        socket.emit('join-room', { code, nickname });
+    }
+
+    function startGameFromLobby() {
+        socket.emit('start-game');
+        document.getElementById('start-game-btn').textContent = 'Načítání...';
+        document.getElementById('start-game-btn').disabled = true;
+    }
+
+    function sendChat(role) {
+        const inp = document.getElementById(role === 'host' ? 'host-chat-input' : 'guest-chat-input');
+        const text = inp.value.trim();
+        if (!text || Date.now() - state.lastChat < 500) return;
+        state.lastChat = Date.now();
+        socket.emit('chat-message', text);
+        inp.value = '';
+    }
+
+    function startMPGame() {
+        state.gameMode = 'mp';
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('game-panel').classList.remove('hidden');
+        document.getElementById('single-stats').classList.add('hidden');
+        document.getElementById('mp-scoreboard').classList.remove('hidden');
+        document.getElementById('game-over').classList.remove('show');
+    }
+
     function initMap() {
         showMapLoader();
         if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
         state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
         
+        // Oprava: invalidateSize pro správné vykreslení
         setTimeout(() => {
             if (state.map) {
                 state.map.invalidateSize();
@@ -1250,17 +638,21 @@ const game = (function() {
         }, 2000);
     }
 
-    function startMPGame() {
-        state.gameMode = 'mp';
+    function startSingle() {
+        if (!countries.length) { showToast('Načítání...'); return; }
+        state.gameMode = 'single';
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
-        document.getElementById('bottom-panel').style.display = 'block';
-        document.getElementById('streak-stat').classList.add('hidden');
-        document.getElementById('round-stat').querySelector('.stat-label').textContent = 'Kolo';
-        document.getElementById('game-over').classList.remove('show');
+        document.getElementById('single-stats').classList.remove('hidden');
+        document.getElementById('mp-scoreboard').classList.add('hidden');
+        state.score = 0; state.streak = 0;
+        document.getElementById('score').textContent = '0';
+        document.getElementById('streak').textContent = '0';
+        nextSingleRound();
     }
 
     function nextSingleRound() {
+        // Oprava: Zabránění stejné zemi dvakrát po sobě
         let newCountry;
         do {
             newCountry = countries[Math.floor(Math.random() * countries.length)];
@@ -1268,59 +660,102 @@ const game = (function() {
         
         state.currentCountry = newCountry;
         state.attempts = 0;
-        state.finished = false;
         initMap();
-        updateAttemptDisplay();
+        updateHint();
         setInputEnabled(true);
+    }
+
+    function makeGuess() {
+        // Rate limiting na klientovi
+        if (state.guessCooldown || Date.now() - state.lastGuess < 300) return;
+        state.lastGuess = Date.now();
+        state.guessCooldown = true;
+        setTimeout(() => state.guessCooldown = false, 300);
+        
+        if (state.gameMode === 'mp' && state.finished) return;
+        
+        const inp = document.getElementById('guessInput');
+        const val = inp.value.trim();
+        if (!val) { inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 500); return; }
+
+        const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const correct = norm(val) === norm(state.currentCountry[0]) || state.currentCountry[3].some(a => norm(val) === norm(a));
+        
+        if (correct) {
+            if (state.gameMode === 'mp') {
+                socket.emit('correct-guess');
+            } else {
+                handleSingleCorrect();
+            }
+        } else {
+            handleWrong();
+        }
     }
 
     function handleSingleCorrect() {
         const pts = Math.floor(50 / (state.attempts + 1));
-        state.totalScore += pts;
-        state.gamesPlayed++;
-        document.getElementById('score').textContent = state.totalScore;
-        document.getElementById('round-display').textContent = state.gamesPlayed;
-        
-        const hint = document.getElementById('hint');
-        hint.innerHTML = `✓ Správně! ${state.currentCountry[0]} (+${pts}b) | Celkem: ${state.totalScore}b`;
-        hint.className = 'hint-bar success';
-        
+        state.score += pts; state.streak++;
+        document.getElementById('score').textContent = state.score;
+        document.getElementById('streak').textContent = state.streak;
+        document.getElementById('hint').innerHTML = `<span class="success">✓ ${state.currentCountry[0]}! +${pts}b</span>`;
         playSound('success');
         setInputEnabled(false);
-        
-        setTimeout(() => {
-            nextSingleRound();
-        }, 2000);
+        setTimeout(nextSingleRound, 2000);
     }
 
-    function handleSingleWrong() {
+    function handleWrong() {
         playSound('error');
         state.attempts++;
-        updateAttemptDisplay();
-        
-        if (state.attempts >= config.maxAttempts) {
-            state.gamesPlayed++;
-            document.getElementById('round-display').textContent = state.gamesPlayed;
-            
-            const hint = document.getElementById('hint');
-            hint.innerHTML = `✗ Bylo to ${state.currentCountry[0]} | Skóre: ${state.totalScore}b`;
-            hint.className = 'hint-bar fail';
-            
-            setInputEnabled(false);
-            setTimeout(() => {
-                nextSingleRound();
-            }, 3000);
+        if (state.gameMode === 'single') {
+            if (state.attempts >= config.maxAttempts) {
+                state.streak = 0;
+                document.getElementById('streak').textContent = '0';
+                document.getElementById('hint').innerHTML = `<span class="fail">✗ Bylo to ${state.currentCountry[0]}</span>`;
+                setInputEnabled(false);
+                setTimeout(nextSingleRound, 3000);
+            } else {
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+                updateHint();
+            }
         } else {
-            state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+            if (state.attempts >= config.maxAttempts) {
+                setInputEnabled(false);
+                socket.emit('out-of-attempts');
+                document.getElementById('hint').textContent = 'Došly pokusy! Čekání na ostatní...';
+            } else {
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+                updateHint();
+            }
         }
     }
 
-    function updateAttemptDisplay() {
-        document.getElementById('attempts').textContent = state.attempts;
-        const left = config.maxAttempts - state.attempts;
-        const hint = document.getElementById('hint');
-        hint.textContent = `Zbývá ${left} pokusů • ${config.zoomLabels[state.attempts]}`;
-        hint.className = 'hint-bar';
+    function updateHint() {
+        document.getElementById('hint').textContent = `Pokus ${state.attempts + 1}/${config.maxAttempts} | ${config.zoomLabels[state.attempts]}`;
+    }
+
+    function rematch() {
+        if (state.gameMode === 'mp' && state.isHost) {
+            socket.emit('request-rematch');
+            document.getElementById('game-over').classList.remove('show');
+            document.getElementById('host-panel').classList.remove('hidden');
+            const btn = document.getElementById('start-game-btn');
+            btn.classList.remove('hidden');
+            btn.textContent = '▶️ SPUSTIT HRU';
+            btn.disabled = false;
+        } else if (state.gameMode === 'single') {
+            startSingle();
+            document.getElementById('game-over').classList.remove('show');
+        }
+    }
+
+    function backToMenu() {
+        socket.disconnect();
+        location.href = location.pathname;
+    }
+
+    // AUTOCOMPLETE - Opraveno pro hledání i v alternativních názvech
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     function handleAutocomplete(e) {
@@ -1336,6 +771,7 @@ const game = (function() {
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
         
+        // Oprava: Hledání i v alternativních názvech (c[3])
         const matches = countries.filter(c => {
             const mainMatch = norm(c[0]).includes(valNorm);
             const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
@@ -1347,14 +783,28 @@ const game = (function() {
             return;
         }
         
+        const safeVal = escapeRegex(val);
+        const regex = new RegExp(`(${safeVal})`, 'gi');
+        
         matches.forEach(c => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
-            div.textContent = c[0];
+            
+            const parts = c[0].split(regex);
+            parts.forEach(part => {
+                if (part.toLowerCase() === val.toLowerCase()) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = part;
+                    div.appendChild(strong);
+                } else {
+                    div.appendChild(document.createTextNode(part));
+                }
+            });
+            
             div.onclick = () => {
                 document.getElementById('guessInput').value = c[0];
                 list.classList.remove('active');
-                game.makeGuess();
+                makeGuess();
             };
             list.appendChild(div);
         });
@@ -1373,25 +823,39 @@ const game = (function() {
         }
         
         document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') game.sendChat('host');
+            if (e.key === 'Enter') sendChat('host');
         });
         
         document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') game.sendChat('guest');
+            if (e.key === 'Enter') sendChat('guest');
         });
         
         document.getElementById('guessInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') game.makeGuess();
+            if (e.key === 'Enter') makeGuess();
         });
         
         document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
         
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.input-panel')) {
+            if (!e.target.closest('.input-wrapper')) {
                 document.getElementById('autocomplete-list').classList.remove('active');
             }
         });
     });
+
+    return {
+        startSingle,
+        startHost,
+        showJoin,
+        joinGame,
+        startGameFromLobby,
+        sendChat,
+        copyLink,
+        makeGuess,
+        rematch,
+        backToMenu,
+        showMain
+    };
 })();
 </script>
 </body>
