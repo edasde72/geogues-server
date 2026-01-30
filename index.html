@@ -996,7 +996,7 @@ const game = (function() {
                 back_to_play: "🎮 Hrát",
                 info_title: "🌍 O hře GeoScale", info_subtitle: "Zábavná geografická hra pro celý svět",
                 info_goal_title: "Cíl hry", info_goal_1: "Trénink zeměpisu a poznávání světa", info_goal_2: "Uhodni zemi podle zobrazení na mapě", info_goal_3: "Více než 190 zemí celého světa", info_goal_4: "Různé herní módy pro jednoho i více hráčů",
-                info_modes_title: "Herní módy", info_modes_1: "Single Player: Hrej sám na čas", info_modes_2: "Multiplayer: Soutěž s přáteli (2-8 hráčů)", info_modes_3: "Kontinenty: Zaměř se na konkrétní část světa", info_modes_4: "Žebříček: Soutěž o nejlepší skóre",
+                info_modes_title: "Herní módy", info_modes_1: "Single Player: Hraj sám na čas", info_modes_2: "Multiplayer: Soutěž s přáteli (2-8 hráčů)", info_modes_3: "Kontinenty: Zaměř se na konkrétní část světa", info_modes_4: "Žebříček: Soutěž o nejlepší skóre",
                 info_points_title: "Bodování", info_points_1: "Single: Až 50 bodů za zemi", info_points_2: "Multiplayer: 1 bod za vítězné kolo", info_points_3: "Série: Sleduj svou úspěšnost", info_points_4: "Čas: 5 minut v singleplayeru",
                 info_features_title: "Vlastnosti", info_features_1: "Interaktivní mapy s postupným zoomem", info_features_2: "Chat v multiplayeru", info_features_3: "Ukládání nejlepších skóre", info_features_4: "Funguje na PC i mobilech",
                 results_title: "📊 Tvé statistiky", results_subtitle: "Přehled herních úspěchů a výkonů",
@@ -1033,12 +1033,8 @@ const game = (function() {
                 players_6: "6 hráčů",
                 players_8: "8 hráčů",
                 continent: {
-                    world: "🌍 Celý svět (194 zemí)", 
-                    europe: "🇪🇺 Evropa (46 zemí)", 
-                    asia: "🌏 Asie (49 zemí)",
-                    americas: "🌎 Amerika (35 zemí)", 
-                    africa: "🌍 Afrika (54 zemí)", 
-                    oceania: "🌏 Oceánie (14 zemí)"
+                    world: "🌍 Celý svět (194 zemí)", europe: "🇪🇺 Evropa (46 zemí)", asia: "🌏 Asie (49 zemí)",
+                    americas: "🌎 Amerika (35 zemí)", africa: "🌍 Afrika (54 zemí)", oceania: "🌏 Oceánie (14 zemí)"
                 },
                 countries: {}
             },
@@ -1087,12 +1083,8 @@ const game = (function() {
                 players_6: "6 players",
                 players_8: "8 players",
                 continent: {
-                    world: "🌍 Whole World (194 countries)", 
-                    europe: "🇪🇺 Europe (46 countries)", 
-                    asia: "🌏 Asia (49 countries)",
-                    americas: "🌎 Americas (35 countries)", 
-                    africa: "🌍 Africa (54 countries)", 
-                    oceania: "🌏 Oceania (14 countries)"
+                    world: "🌍 Whole World (194 countries)", europe: "🇪🇺 Europe (46 countries)", asia: "🌏 Asia (49 countries)",
+                    americas: "🌎 Americas (35 countries)", africa: "🌍 Africa (54 countries)", oceania: "🌏 Oceania (14 countries)"
                 },
                 countries: {
                     "Albánie": "Albania", "Andora": "Andorra", "Rakousko": "Austria", "Bělorusko": "Belarus", "Belgie": "Belgium",
@@ -1151,8 +1143,7 @@ const game = (function() {
         },
         
         t(key, params = {}) {
-            let text = this.translations[this.currentLang][key];
-            if (!text) return key;
+            let text = this.translations[this.currentLang][key] || key;
             if (typeof text === 'object') return key;
             Object.keys(params).forEach(k => {
                 text = text.replace(`{${k}}`, params[k]);
@@ -1165,13 +1156,8 @@ const game = (function() {
             return this.translations.en.countries[czechName] || czechName;
         },
 
-        // OPRAVA: Přímý přístup k objektu místo volání metody t()
         getContinentName(key) {
-            const continents = this.translations[this.currentLang].continent;
-            if (continents && continents[key]) {
-                return continents[key];
-            }
-            return key;
+            return this.t('continent')[key] || key;
         },
         
         setLang(lang) {
@@ -1186,20 +1172,8 @@ const game = (function() {
     let soundEnabled = localStorage.getItem('geoguessr_sound') !== 'false';
     const STATS_KEY = 'geoguessr_stats_v2';
     
-    // OPRAVA: Zvuky na mobilech - AudioContext potřebuje user interaction
-    let audioContextAllowed = false;
-    function initAudioContext() {
-        if (!audioContextAllowed) {
-            audioContextAllowed = true;
-        }
-    }
-    
-    // Přidáme listener na první klik/tap pro aktivaci zvuků
-    document.addEventListener('click', initAudioContext, { once: true });
-    document.addEventListener('touchstart', initAudioContext, { once: true });
-    
     function playSound(type) {
-        if (!soundEnabled || !audioContextAllowed) return;
+        if (!soundEnabled) return;
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -1308,27 +1282,26 @@ const game = (function() {
         document.getElementById('label-countries').textContent = i18n.t('countries');
         document.getElementById('label-round').textContent = i18n.t('round');
         
-        // Opravený překlad kontinentů - přímý přístup podle value
+        // Continent select v menu
         const contSelect = document.getElementById('continent-select');
         if(contSelect) {
-            const continentKeys = ['world', 'europe', 'asia', 'americas', 'africa', 'oceania'];
-            continentKeys.forEach(key => {
-                const opt = contSelect.querySelector(`option[value="${key}"]`);
-                if(opt) {
-                    opt.textContent = i18n.getContinentName(key);
-                }
-            });
+            const options = contSelect.querySelectorAll('option');
+            if(options.length >= 6) {
+                options[0].textContent = i18n.getContinentName('world');
+                options[1].textContent = i18n.getContinentName('europe');
+                options[2].textContent = i18n.getContinentName('asia');
+                options[3].textContent = i18n.getContinentName('americas');
+                options[4].textContent = i18n.getContinentName('africa');
+                options[5].textContent = i18n.getContinentName('oceania');
+            }
         }
         
-        // Opravený překlad počtu hráčů
+        // Player count select
         const playerSelect = document.getElementById('max-players');
         if(playerSelect) {
-            const playerValues = ['2', '3', '4', '6', '8'];
-            playerValues.forEach(val => {
-                const opt = playerSelect.querySelector(`option[value="${val}"]`);
-                if(opt) {
-                    opt.textContent = i18n.t('players_' + val);
-                }
+            const options = playerSelect.querySelectorAll('option');
+            options.forEach(opt => {
+                opt.textContent = i18n.t('players_' + opt.value);
             });
         }
         
@@ -1347,8 +1320,6 @@ const game = (function() {
         soundEnabled = !soundEnabled;
         localStorage.setItem('geoguessr_sound', soundEnabled);
         updateSoundButton();
-        // Inicializujeme audio context při manuálním zapnutí zvuku
-        initAudioContext();
     }
 
     function setLanguage(lang) {
@@ -2219,10 +2190,6 @@ const game = (function() {
             document.querySelector('.menu > .mp-section').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
             document.getElementById('join-code').value = room.slice(0, 10);
-            // OPRAVA: Automaticky zaměříme kurzor na pole pro jméno
-            setTimeout(() => {
-                document.getElementById('join-nickname').focus();
-            }, 100);
         }
         document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendChat('host');
