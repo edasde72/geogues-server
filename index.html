@@ -1165,8 +1165,9 @@ const game = (function() {
             return this.translations.en.countries[czechName] || czechName;
         },
 
+        // OPRAVA: Přímý přístup k objektu místo volání metody t()
         getContinentName(key) {
-            const continents = this.t('continent');
+            const continents = this.translations[this.currentLang].continent;
             if (continents && continents[key]) {
                 return continents[key];
             }
@@ -1185,8 +1186,20 @@ const game = (function() {
     let soundEnabled = localStorage.getItem('geoguessr_sound') !== 'false';
     const STATS_KEY = 'geoguessr_stats_v2';
     
+    // OPRAVA: Zvuky na mobilech - AudioContext potřebuje user interaction
+    let audioContextAllowed = false;
+    function initAudioContext() {
+        if (!audioContextAllowed) {
+            audioContextAllowed = true;
+        }
+    }
+    
+    // Přidáme listener na první klik/tap pro aktivaci zvuků
+    document.addEventListener('click', initAudioContext, { once: true });
+    document.addEventListener('touchstart', initAudioContext, { once: true });
+    
     function playSound(type) {
-        if (!soundEnabled) return;
+        if (!soundEnabled || !audioContextAllowed) return;
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -1334,6 +1347,8 @@ const game = (function() {
         soundEnabled = !soundEnabled;
         localStorage.setItem('geoguessr_sound', soundEnabled);
         updateSoundButton();
+        // Inicializujeme audio context při manuálním zapnutí zvuku
+        initAudioContext();
     }
 
     function setLanguage(lang) {
@@ -2204,6 +2219,10 @@ const game = (function() {
             document.querySelector('.menu > .mp-section').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
             document.getElementById('join-code').value = room.slice(0, 10);
+            // OPRAVA: Automaticky zaměříme kurzor na pole pro jméno
+            setTimeout(() => {
+                document.getElementById('join-nickname').focus();
+            }, 100);
         }
         document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendChat('host');
