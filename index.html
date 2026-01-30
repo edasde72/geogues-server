@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GeoScale Multiplayer</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css " crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js " crossorigin=""></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js " crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
     <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
@@ -1035,7 +1035,7 @@
             </div>
             
             <div id="round-display" class="round-badge-container hidden">
-                <div class="round-badge"><span data-i18n="round">Kolo</span> <span id="round">1</span>/<span id="total-rounds">5</span></div>
+                <div class="round-badge"><span data-i18n="round">Kolo</span> <span id="current-round">1</span>/<span id="total-rounds">5</span></div>
             </div>
 
             <div class="input-wrapper">
@@ -1056,10 +1056,11 @@
 const game = (function() {
     'use strict';
     
-    // Databáze překladů zemí (rozšiřitelná)
+    // Databáze překladů zemí (CS -> EN mapa pro získání anglických názvů)
     const countryTranslations = {
         "cs": {
             "Czech Republic": "Česká republika",
+            "Czechia": "Česko",
             "Germany": "Německo",
             "Austria": "Rakousko",
             "Poland": "Polsko",
@@ -1074,19 +1075,20 @@ const game = (function() {
             "Netherlands": "Nizozemsko",
             "Belgium": "Belgie",
             "Switzerland": "Švýcarsko",
-            "United States": "Spojené státy",
+            "United States": "USA",
+            "USA": "USA",
             "Canada": "Kanada",
             "Mexico": "Mexiko",
             "Russia": "Rusko",
             "Ukraine": "Ukrajina",
             "China": "Čína",
             "Japan": "Japonsko",
-            "India": " Indie",
+            "India": "Indie",
             "Australia": "Austrálie",
             "Brazil": "Brazílie",
             "Argentina": "Argentina",
             "Chile": "Chile",
-            "South Africa": "Jihoafrická republika",
+            "South Africa": "Jižní Afrika",
             "Egypt": "Egypt",
             "Turkey": "Turecko",
             "Greece": "Řecko",
@@ -1102,29 +1104,55 @@ const game = (function() {
             "Vietnam": "Vietnam",
             "South Korea": "Jižní Korea",
             "North Korea": "Severní Korea"
-        },
-        "en": {} // Anglické názvy zůstávají jak jsou
+        }
     };
 
-    function getCountryDisplayName(englishName) {
-        if (currentLang === 'en') return englishName;
-        return countryTranslations[currentLang]?.[englishName] || englishName;
+    // Funkce pro získání anglického názvu země z českého
+    function getEnglishName(czName) {
+        if (!czName) return '';
+        
+        // Hledáme v překladech (hodnota = český název, klíč = anglický)
+        for (let [eng, cz] of Object.entries(countryTranslations.cs)) {
+            if (cz === czName) return eng;
+        }
+        
+        // Fallback: vezmeme první alternativu z dat a capitalizujeme ji
+        const country = countries.find(c => c[0] === czName);
+        if (country && country[3] && country[3].length > 0) {
+            const alt = country[3][0];
+            // Capitalizace prvního písmene každého slova
+            return alt.split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+        
+        return czName; // Fallback na český název kdyby se něco pokazilo
     }
 
-    function localizeCountries() {
-        // Přidá české názvy do alternativ pro autocomplete
-        if (currentLang === 'cs' && countries.length > 0) {
-            countries.forEach(country => {
-                const engName = country[0];
-                const localName = countryTranslations.cs[engName];
-                if (localName && !country[3].includes(localName)) {
-                    country[3].push(localName); // Přidat do alternativních názvů
-                }
-            });
+    // Funkce pro zobrazení názvu země podle aktuálního jazyka
+    function getCountryDisplayName(countryData) {
+        if (!countryData) return '';
+        if (currentLang === 'en') {
+            return getEnglishName(countryData[0]);
         }
+        return countryData[0]; // Český název je na indexu 0
     }
-    
-    // Systém překladů
+
+    // Funkce pro překlad českého názvu ze serveru na aktuální jazyk
+    function translateCountryName(czName) {
+        if (currentLang === 'cs') return czName;
+        
+        // Najdeme zemi v datech podle českého názvu
+        const country = countries.find(c => c[0] === czName);
+        if (country) {
+            return getCountryDisplayName(country);
+        }
+        
+        // Fallback: pokusíme se najít překlad přímo
+        return getEnglishName(czName);
+    }
+
+    // Systém překladů UI
     const translations = {
         cs: {
             navInfo: 'Informace',
@@ -1177,7 +1205,7 @@ const game = (function() {
             language: 'Jazyk',
             backToGame: '🎮 Zpět do hry',
             gameSubtitle: 'Poznáš zemi podle mapy?',
-            bestScores: 'Nejlepší skóре',
+            bestScores: 'Nejlepší skóre',
             noScoresSingle: 'Zatím žádné skóre. Zahraj si singleplayer!',
             clearHistory: 'Smazat historii',
             quickStart: 'Rychlý start',
@@ -1408,7 +1436,7 @@ const game = (function() {
             options.forEach(opt => {
                 const key = opt.getAttribute('data-i18n');
                 if (key && translations[currentLang][key]) {
-                    opt.text = translations[currentLang][key];
+                    opt.textContent = translations[currentLang][key];
                 }
             });
         }
@@ -1428,9 +1456,6 @@ const game = (function() {
         
         // Aktualizace HTML lang atributu
         document.documentElement.lang = currentLang;
-
-        // Překlad zemí v načtených datech
-        localizeCountries();
     }
 
     function updateSoundButton() {
@@ -1703,7 +1728,6 @@ const game = (function() {
     
     socket.on('init-data', (data) => { 
         countries = data.countries.world || []; 
-        localizeCountries(); // Přeloží země po načtení
     });
     
     const state = {
@@ -1833,7 +1857,6 @@ const game = (function() {
         document.getElementById('join-panel').classList.add('hidden');
         document.getElementById('navbar').classList.add('hidden');
         state.totalRounds = data.totalRounds || 5;
-        document.getElementById('total-rounds').textContent = state.totalRounds;
         state.rematchVoted = false;
         document.getElementById('rematch-btn').textContent = t('newGame');
         document.getElementById('rematch-btn').disabled = false;
@@ -1853,7 +1876,8 @@ const game = (function() {
         state.attempts = 0;
         state.players = data.players;
         updateScoreboard();
-        document.getElementById('round').textContent = state.currentRound;
+        document.getElementById('current-round').textContent = state.currentRound;
+        document.getElementById('total-rounds').textContent = state.totalRounds;
         document.getElementById('hint').textContent = `${t('round')} ${state.currentRound} ${t('roundStarted')}`;
         initMap();
         setTimeout(() => {
@@ -1869,8 +1893,8 @@ const game = (function() {
         const hint = document.getElementById('hint');
         hint.innerHTML = '';
         
-        // Použijeme přeložený název země
-        const countryName = getCountryDisplayName(data.countryName);
+        // Použijeme přeložený název země ze serveru (přichází česky)
+        const countryName = translateCountryName(data.countryName);
         
         if (data.winner) {
             hint.innerHTML = `<span class="success">🏆 ${escapeHtml(data.winner)} ${t('guessedIt')}! ${t('itWas')} ${escapeHtml(countryName)}</span>`;
@@ -2256,8 +2280,27 @@ const game = (function() {
         const inp = document.getElementById('guessInput');
         const val = inp.value.trim();
         if (!val) { inp.classList.add('shake'); setTimeout(() => inp.classList.remove('shake'), 500); return; }
+        
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-        const correct = norm(val) === norm(state.currentCountry[0]) || state.currentCountry[3].some(a => norm(val) === norm(a));
+        const valNorm = norm(val);
+        
+        // Kontrola podle aktuálního jazyka
+        let correct = false;
+        
+        if (currentLang === 'en') {
+            // V angličtině porovnáme s anglickým názvem
+            const englishName = getEnglishName(state.currentCountry[0]);
+            correct = (valNorm === norm(englishName));
+        } else {
+            // V češtině porovnáme s českým názvem
+            correct = (valNorm === norm(state.currentCountry[0]));
+        }
+        
+        // Také zkontrolujeme alternativy (jsou většinou anglické)
+        if (!correct && state.currentCountry[3]) {
+            correct = state.currentCountry[3].some(a => norm(val) === norm(a));
+        }
+        
         if (correct) {
             if (state.gameMode === 'mp') {
                 socket.emit('correct-guess');
@@ -2277,7 +2320,7 @@ const game = (function() {
         document.getElementById('score').textContent = state.score;
         document.getElementById('streak').textContent = state.streak;
         document.getElementById('countries-count').textContent = state.countriesGuessed;
-        const displayName = getCountryDisplayName(state.currentCountry[0]);
+        const displayName = getCountryDisplayName(state.currentCountry);
         document.getElementById('hint').innerHTML = `<span class="success">✓ ${displayName}! +${pts}</span>`;
         playSound('success');
         setInputEnabled(false);
@@ -2297,7 +2340,7 @@ const game = (function() {
             if (state.attempts >= config.maxAttempts) {
                 state.streak = 0;
                 document.getElementById('streak').textContent = '0';
-                const displayName = getCountryDisplayName(state.currentCountry[0]);
+                const displayName = getCountryDisplayName(state.currentCountry);
                 document.getElementById('hint').innerHTML = `<span class="fail">✗ ${t('itWas')} ${displayName}</span>`;
                 setInputEnabled(false);
                 setTimeout(nextSingleRound, 2000);
@@ -2360,22 +2403,37 @@ const game = (function() {
         }
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
+        
+        // Filtrování podle aktuálního jazyka
         const matches = countries.filter(c => {
-            const mainMatch = norm(c[0]).includes(valNorm);
-            const altMatch = c[3].some(alt => norm(alt).includes(valNorm));
-            return mainMatch || altMatch;
+            if (currentLang === 'en') {
+                // Vyhledáváme v anglických názvech
+                const engName = norm(getEnglishName(c[0]));
+                const alternatives = c[3] || [];
+                return engName.includes(valNorm) || alternatives.some(a => norm(a).includes(valNorm));
+            } else {
+                // Vyhledáváme v českých názvech
+                const czName = norm(c[0]);
+                const alternatives = c[3] || [];
+                return czName.includes(valNorm) || alternatives.some(a => norm(a).includes(valNorm));
+            }
         }).slice(0, 5);
+        
         if (matches.length === 0) {
             list.classList.remove('active');
             return;
         }
+        
         const safeVal = escapeRegex(val);
         const regex = new RegExp(`(${safeVal})`, 'gi');
+        
         matches.forEach(c => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
-            // Zobrazíme lokalizovaný název v autocomplete
-            const displayName = getCountryDisplayName(c[0]);
+            
+            // Zobrazíme název v aktuálním jazyku
+            const displayName = getCountryDisplayName(c);
+            
             const parts = displayName.split(regex);
             parts.forEach(part => {
                 if (part.toLowerCase() === val.toLowerCase()) {
@@ -2386,6 +2444,7 @@ const game = (function() {
                     div.appendChild(document.createTextNode(part));
                 }
             });
+            
             div.onclick = () => {
                 document.getElementById('guessInput').value = displayName;
                 list.classList.remove('active');
