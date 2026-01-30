@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GeoScale Multiplayer</title>
+    <title>GeoScale</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
@@ -871,12 +871,12 @@
                 
                 <div class="select-group">
                     <select id="continent-select" class="continent-select">
-                        <option value="world">🌍 Celý svět (194 zemí)</option>
-                        <option value="europe">🇪🇺 Evropa (46 zemí)</option>
-                        <option value="asia">🌏 Asie (49 zemí)</option>
-                        <option value="americas">🌎 Amerika (35 zemí)</option>
-                        <option value="africa">🌍 Afrika (54 zemí)</option>
-                        <option value="oceania">🌏 Oceánie (14 zemí)</option>
+                        <option value="World">🌍 Celý svět (194 zemí)</option>
+                        <option value="Europe">🇪🇺 Evropa (46 zemí)</option>
+                        <option value="Asia">🌏 Asie (49 zemí)</option>
+                        <option value="Americas">🌎 Amerika (35 zemí)</option>
+                        <option value="Africa">🌍 Afrika (54 zemí)</option>
+                        <option value="Oceania">🌏 Oceánie (14 zemí)</option>
                     </select>
                     <select id="max-players" class="player-count-select">
                         <option value="2">2 hráči</option>
@@ -996,7 +996,7 @@ const game = (function() {
                 back_to_play: "🎮 Hrát",
                 info_title: "🌍 O hře GeoScale", info_subtitle: "Zábavná geografická hra pro celý svět",
                 info_goal_title: "Cíl hry", info_goal_1: "Trénink zeměpisu a poznávání světa", info_goal_2: "Uhodni zemi podle zobrazení na mapě", info_goal_3: "Více než 190 zemí celého světa", info_goal_4: "Různé herní módy pro jednoho i více hráčů",
-                info_modes_title: "Herní módy", info_modes_1: "Single Player: Hraj sám na čas", info_modes_2: "Multiplayer: Soutěž s přáteli (2-8 hráčů)", info_modes_3: "Kontinenty: Zaměř se na konkrétní část světa", info_modes_4: "Žebříček: Soutěž o nejlepší skóre",
+                info_modes_title: "Herní módy", info_modes_1: "Single Player: Hrej sám na čas", info_modes_2: "Multiplayer: Soutěž s přáteli (2-8 hráčů)", info_modes_3: "Kontinenty: Zaměř se na konkrétní část světa", info_modes_4: "Žebříček: Soutěž o nejlepší skóre",
                 info_points_title: "Bodování", info_points_1: "Single: Až 50 bodů za zemi", info_points_2: "Multiplayer: 1 bod za vítězné kolo", info_points_3: "Série: Sleduj svou úspěšnost", info_points_4: "Čas: 5 minut v singleplayeru",
                 info_features_title: "Vlastnosti", info_features_1: "Interaktivní mapy s postupným zoomem", info_features_2: "Chat v multiplayeru", info_features_3: "Ukládání nejlepších skóre", info_features_4: "Funguje na PC i mobilech",
                 results_title: "📊 Tvé statistiky", results_subtitle: "Přehled herních úspěchů a výkonů",
@@ -1033,8 +1033,12 @@ const game = (function() {
                 players_6: "6 hráčů",
                 players_8: "8 hráčů",
                 continent: {
-                    world: "🌍 Celý svět (194 zemí)", europe: "🇪🇺 Evropa (46 zemí)", asia: "🌏 Asie (49 zemí)",
-                    americas: "🌎 Amerika (35 zemí)", africa: "🌍 Afrika (54 zemí)", oceania: "🌏 Oceánie (14 zemí)"
+                    World: "🌍 Celý svět (194 zemí)", 
+                    Europe: "🇪🇺 Evropa (46 zemí)", 
+                    Asia: "🌏 Asie (49 zemí)",
+                    Americas: "🌎 Amerika (35 zemí)", 
+                    Africa: "🌍 Afrika (54 zemí)", 
+                    Oceania: "🌏 Oceánie (14 zemí)"
                 },
                 countries: {}
             },
@@ -1083,8 +1087,12 @@ const game = (function() {
                 players_6: "6 players",
                 players_8: "8 players",
                 continent: {
-                    world: "🌍 Whole World (194 countries)", europe: "🇪🇺 Europe (46 countries)", asia: "🌏 Asia (49 countries)",
-                    americas: "🌎 Americas (35 countries)", africa: "🌍 Africa (54 countries)", oceania: "🌏 Oceania (14 countries)"
+                    World: "🌍 Whole World (194 countries)", 
+                    Europe: "🇪🇺 Europe (46 countries)", 
+                    Asia: "🌏 Asia (49 countries)",
+                    Americas: "🌎 Americas (35 countries)", 
+                    Africa: "🌍 Africa (54 countries)", 
+                    Oceania: "🌏 Oceania (14 countries)"
                 },
                 countries: {
                     "Albánie": "Albania", "Andora": "Andorra", "Rakousko": "Austria", "Bělorusko": "Belarus", "Belgie": "Belgium",
@@ -1143,7 +1151,8 @@ const game = (function() {
         },
         
         t(key, params = {}) {
-            let text = this.translations[this.currentLang][key] || key;
+            let text = this.translations[this.currentLang][key];
+            if (!text) return key;
             if (typeof text === 'object') return key;
             Object.keys(params).forEach(k => {
                 text = text.replace(`{${k}}`, params[k]);
@@ -1157,7 +1166,11 @@ const game = (function() {
         },
 
         getContinentName(key) {
-            return this.t('continent')[key] || key;
+            const continents = this.t('continent');
+            if (continents && continents[key]) {
+                return continents[key];
+            }
+            return key;
         },
         
         setLang(lang) {
@@ -1282,26 +1295,27 @@ const game = (function() {
         document.getElementById('label-countries').textContent = i18n.t('countries');
         document.getElementById('label-round').textContent = i18n.t('round');
         
-        // Continent select v menu
+        // Opravený překlad kontinentů - přímý přístup podle value
         const contSelect = document.getElementById('continent-select');
         if(contSelect) {
-            const options = contSelect.querySelectorAll('option');
-            if(options.length >= 6) {
-                options[0].textContent = i18n.getContinentName('world');
-                options[1].textContent = i18n.getContinentName('europe');
-                options[2].textContent = i18n.getContinentName('asia');
-                options[3].textContent = i18n.getContinentName('americas');
-                options[4].textContent = i18n.getContinentName('africa');
-                options[5].textContent = i18n.getContinentName('oceania');
-            }
+            const continentKeys = ['World', 'Europe', 'Asia', 'Americas', 'Africa', 'Oceania'];
+            continentKeys.forEach(key => {
+                const opt = contSelect.querySelector(`option[value="${key}"]`);
+                if(opt) {
+                    opt.textContent = i18n.getContinentName(key);
+                }
+            });
         }
         
-        // Player count select
+        // Opravený překlad počtu hráčů
         const playerSelect = document.getElementById('max-players');
         if(playerSelect) {
-            const options = playerSelect.querySelectorAll('option');
-            options.forEach(opt => {
-                opt.textContent = i18n.t('players_' + opt.value);
+            const playerValues = ['2', '3', '4', '6', '8'];
+            playerValues.forEach(val => {
+                const opt = playerSelect.querySelector(`option[value="${val}"]`);
+                if(opt) {
+                    opt.textContent = i18n.t('players_' + val);
+                }
             });
         }
         
@@ -2202,7 +2216,7 @@ const game = (function() {
             guessBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 makeGuess();
-            }, {passive: false});
+            }, {passive: false});https://github.com/edasde72/geogues-server/blob/main/index.html
         } else {
             guessBtn.addEventListener('click', makeGuess);
         }
