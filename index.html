@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GeoScale</title>
+    <title>GeoScale Multiplayer</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
@@ -587,11 +587,27 @@
         input[type="text"]:focus { border-color: #667eea; }
         input.shake { animation: shake 0.5s; border-color: #ef4444; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
-        button:not(.menu-btn):not(.small):not(.lang-btn):not(.toggle-btn) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        button:not(.menu-btn):not(.small):not(.lang-btn):not(.toggle-btn) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; touch-action: manipulation; }
         button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; }
         button.small { padding: 10px 20px; font-size: 14px; background: #999; color: white; border: none; border-radius: 20px; cursor: pointer; }
         
-        .autocomplete-items { position: absolute; border: 1px solid #ddd; z-index: 99; top: 100%; left: 0; right: 0; margin-top: 5px; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; display: none; background: white; text-align: left; }
+        .autocomplete-items { 
+            position: absolute; 
+            border: 1px solid #ddd; 
+            z-index: 9999; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            margin-top: 5px; 
+            border-radius: 15px; 
+            overflow: hidden; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
+            max-height: 200px; 
+            overflow-y: auto; 
+            display: none; 
+            background: white; 
+            text-align: left; 
+        }
         .autocomplete-items.active { display: block; }
         .autocomplete-item { padding: 12px 20px; cursor: pointer; background-color: #fff; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
         .autocomplete-item:hover, .autocomplete-item.selected { background-color: #667eea; color: white; }
@@ -660,6 +676,12 @@
             .highscore-date { display: none; }
             .cta-button-wide { width: 90%; max-width: 350px; padding: 18px; font-size: 18px; }
             .code-display { font-size: 24px; letter-spacing: 3px; }
+            
+            /* Oprava autocomplete pro mobily */
+            .autocomplete-items {
+                max-height: 150px;
+                z-index: 10000;
+            }
         }
         
         @media (max-width: 480px) {
@@ -871,12 +893,12 @@
                 
                 <div class="select-group">
                     <select id="continent-select" class="continent-select">
-                        <option value="World">🌍 Celý svět (194 zemí)</option>
-                        <option value="Europe">🇪🇺 Evropa (46 zemí)</option>
-                        <option value="Asia">🌏 Asie (49 zemí)</option>
-                        <option value="Americas">🌎 Amerika (35 zemí)</option>
-                        <option value="Africa">🌍 Afrika (54 zemí)</option>
-                        <option value="Oceania">🌏 Oceánie (14 zemí)</option>
+                        <option value="world">🌍 Celý svět (194 zemí)</option>
+                        <option value="europe">🇪🇺 Evropa (46 zemí)</option>
+                        <option value="asia">🌏 Asie (49 zemí)</option>
+                        <option value="americas">🌎 Amerika (35 zemí)</option>
+                        <option value="africa">🌍 Afrika (54 zemí)</option>
+                        <option value="oceania">🌏 Oceánie (14 zemí)</option>
                     </select>
                     <select id="max-players" class="player-count-select">
                         <option value="2">2 hráči</option>
@@ -1002,7 +1024,9 @@ const game = (function() {
                 results_title: "📊 Tvé statistiky", results_subtitle: "Přehled herních úspěchů a výkonů",
                 stat_games: "Odehraných her", stat_wins: "Výhry v MP", stat_countries: "Uhodnuto zemí", stat_streak: "Nejlepší série", stat_best: "Nejlepší skóre", stat_rate: "Úspěšnost",
                 no_scores: "Zatím žádné skóre.<br>Zahrej si a získej místo v žebříčku!",
-                clear_stats: "Smazat všechny statistiky", play_again: "🎮 Hrát znovu",
+                clear_stats: "Smazat všechny statistiky", 
+                clear_history: "Smazat historii",
+                play_again: "🎮 Hrát znovu",
                 game_title: "🌍 GeoScale", game_subtitle: "Poznáš zemi podle mapy?",
                 quick_start_title: "🚀 Rychlý start", quick_start_desc: "Vyber si rychle herní režim a začni hrát ihned.",
                 single_player: "👤 Single Player (5 min)",
@@ -1033,12 +1057,12 @@ const game = (function() {
                 players_6: "6 hráčů",
                 players_8: "8 hráčů",
                 continent: {
-                    World: "🌍 Celý svět (194 zemí)", 
-                    Europe: "🇪🇺 Evropa (46 zemí)", 
-                    Asia: "🌏 Asie (49 zemí)",
-                    Americas: "🌎 Amerika (35 zemí)", 
-                    Africa: "🌍 Afrika (54 zemí)", 
-                    Oceania: "🌏 Oceánie (14 zemí)"
+                    world: "🌍 Celý svět (194 zemí)", 
+                    europe: "🇪🇺 Evropa (46 zemí)", 
+                    asia: "🌏 Asie (49 zemí)",
+                    americas: "🌎 Amerika (35 zemí)", 
+                    africa: "🌍 Afrika (54 zemí)", 
+                    oceania: "🌏 Oceánie (14 zemí)"
                 },
                 countries: {}
             },
@@ -1056,7 +1080,9 @@ const game = (function() {
                 results_title: "📊 Your Statistics", results_subtitle: "Overview of gaming achievements and performance",
                 stat_games: "Games Played", stat_wins: "MP Wins", stat_countries: "Countries Guessed", stat_streak: "Best Streak", stat_best: "Best Score", stat_rate: "Win Rate",
                 no_scores: "No scores yet.<br>Play to get on the leaderboard!",
-                clear_stats: "Clear all statistics", play_again: "🎮 Play Again",
+                clear_stats: "Clear all statistics",
+                clear_history: "Clear history",
+                play_again: "🎮 Play Again",
                 game_title: "🌍 GeoScale", game_subtitle: "Can you guess the country from the map?",
                 quick_start_title: "🚀 Quick Start", quick_start_desc: "Choose a game mode quickly and start playing immediately.",
                 single_player: "👤 Single Player (5 min)",
@@ -1087,12 +1113,12 @@ const game = (function() {
                 players_6: "6 players",
                 players_8: "8 players",
                 continent: {
-                    World: "🌍 Whole World (194 countries)", 
-                    Europe: "🇪🇺 Europe (46 countries)", 
-                    Asia: "🌏 Asia (49 countries)",
-                    Americas: "🌎 Americas (35 countries)", 
-                    Africa: "🌍 Africa (54 countries)", 
-                    Oceania: "🌏 Oceania (14 countries)"
+                    world: "🌍 Whole World (194 countries)", 
+                    europe: "🇪🇺 Europe (46 countries)", 
+                    asia: "🌏 Asia (49 countries)",
+                    americas: "🌎 Americas (35 countries)", 
+                    africa: "🌍 Africa (54 countries)", 
+                    oceania: "🌏 Oceania (14 countries)"
                 },
                 countries: {
                     "Albánie": "Albania", "Andora": "Andorra", "Rakousko": "Austria", "Bělorusko": "Belarus", "Belgie": "Belgium",
@@ -1165,8 +1191,9 @@ const game = (function() {
             return this.translations.en.countries[czechName] || czechName;
         },
 
+        // OPRAVA: Přímý přístup k objektu místo volání metody t()
         getContinentName(key) {
-            const continents = this.t('continent');
+            const continents = this.translations[this.currentLang].continent;
             if (continents && continents[key]) {
                 return continents[key];
             }
@@ -1185,8 +1212,20 @@ const game = (function() {
     let soundEnabled = localStorage.getItem('geoguessr_sound') !== 'false';
     const STATS_KEY = 'geoguessr_stats_v2';
     
+    // OPRAVA: Zvuky na mobilech - AudioContext potřebuje user interaction
+    let audioContextAllowed = false;
+    function initAudioContext() {
+        if (!audioContextAllowed) {
+            audioContextAllowed = true;
+        }
+    }
+    
+    // Přidáme listener na první klik/tap pro aktivaci zvuků
+    document.addEventListener('click', initAudioContext, { once: true });
+    document.addEventListener('touchstart', initAudioContext, { once: true });
+    
     function playSound(type) {
-        if (!soundEnabled) return;
+        if (!soundEnabled || !audioContextAllowed) return;
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -1263,6 +1302,11 @@ const game = (function() {
         document.getElementById('game-subtitle').textContent = i18n.t('game_subtitle');
         document.getElementById('menu-highscore-title').textContent = i18n.t('highscore_title');
         document.getElementById('menu-no-scores').textContent = i18n.t('menu_no_scores');
+        
+        // OPRAVA: Překlad tlačítka "Smazat historii" v menu
+        const clearScoresBtn = document.getElementById('clear-scores-btn');
+        if(clearScoresBtn) clearScoresBtn.textContent = i18n.t('clear_history');
+        
         document.getElementById('quick-start-title').textContent = i18n.t('quick_start_title');
         document.getElementById('quick-start-desc').textContent = i18n.t('quick_start_desc');
         document.getElementById('btn-single').textContent = i18n.t('single_player');
@@ -1298,7 +1342,7 @@ const game = (function() {
         // Opravený překlad kontinentů - přímý přístup podle value
         const contSelect = document.getElementById('continent-select');
         if(contSelect) {
-            const continentKeys = ['World', 'Europe', 'Asia', 'Americas', 'Africa', 'Oceania'];
+            const continentKeys = ['world', 'europe', 'asia', 'americas', 'africa', 'oceania'];
             continentKeys.forEach(key => {
                 const opt = contSelect.querySelector(`option[value="${key}"]`);
                 if(opt) {
@@ -1334,6 +1378,8 @@ const game = (function() {
         soundEnabled = !soundEnabled;
         localStorage.setItem('geoguessr_sound', soundEnabled);
         updateSoundButton();
+        // Inicializujeme audio context při manuálním zapnutí zvuku
+        initAudioContext();
     }
 
     function setLanguage(lang) {
@@ -1861,11 +1907,19 @@ const game = (function() {
     }
 
     function setInputEnabled(en) {
-        document.getElementById('guessInput').disabled = !en;
-        document.getElementById('guessBtn').disabled = !en;
+        const guessInput = document.getElementById('guessInput');
+        const guessBtn = document.getElementById('guessBtn');
+        if (!guessInput || !guessBtn) return;
+        
+        guessInput.disabled = !en;
+        guessBtn.disabled = !en;
+        
         if (en) { 
-            document.getElementById('guessInput').value = ''; 
-            document.getElementById('guessInput').focus(); 
+            guessInput.value = ''; 
+            // OPRAVA: Focus s malým delay pro mobily
+            setTimeout(() => {
+                guessInput.focus();
+            }, 100);
         }
     }
 
@@ -2196,43 +2250,83 @@ const game = (function() {
     // Init
     document.addEventListener('DOMContentLoaded', () => {
         updateAllTexts();
-        const url = new URLSearchParams(location.search);
-        const room = url.get('room');
+        const urlParams = new URLSearchParams(window.location.search);
+        const room = urlParams.get('room');
+        
+        // OPRAVA: Jestli je room parametr, rovnou zobrazíme join formulář
         if (room) {
+            // Nejprve zobrazíme play sekci
             showSection(null, 'play');
+            // Skryjeme menu grid a mp-section
             document.querySelector('.menu-grid').classList.add('hidden');
             document.querySelector('.menu > .mp-section').classList.add('hidden');
+            // Zobrazíme join panel
             document.getElementById('join-panel').classList.remove('hidden');
-            document.getElementById('join-code').value = room.slice(0, 10);
+            // Vyplníme kód
+            document.getElementById('join-code').value = room.slice(0, 10).toUpperCase();
+            // Zaměříme se na jméno
+            setTimeout(() => {
+                const nicknameInput = document.getElementById('join-nickname');
+                if (nicknameInput) nicknameInput.focus();
+            }, 200);
         }
-        document.getElementById('host-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendChat('host');
-        });
-        document.getElementById('guest-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendChat('guest');
-        });
+        
+        // OPRAVA: Event listenres pro chat - keydown místo keypress (spolehlivější)
+        const hostChatInput = document.getElementById('host-chat-input');
+        const guestChatInput = document.getElementById('guest-chat-input');
+        
+        if (hostChatInput) {
+            hostChatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendChat('host');
+            });
+        }
+        
+        if (guestChatInput) {
+            guestChatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') sendChat('guest');
+            });
+        }
+        
         const guessBtn = document.getElementById('guessBtn');
         if (isMobile) {
             guessBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 makeGuess();
-            }, {passive: false});https://github.com/edasde72/geogues-server/blob/main/index.html
+            }, {passive: false});
         } else {
             guessBtn.addEventListener('click', makeGuess);
         }
-        document.getElementById('guessInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') makeGuess();
-        });
-        document.getElementById('guessInput').addEventListener('input', handleAutocomplete);
+        
+        // OPRAVA: Keydown místo keypress pro guess input (lepší kompatibilita)
+        const guessInput = document.getElementById('guessInput');
+        if (guessInput) {
+            guessInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    makeGuess();
+                }
+            });
+            
+            // Input event pro autocomplete
+            guessInput.addEventListener('input', handleAutocomplete);
+        }
+        
+        // Skrytí autocomplete při kliknutí ven
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.input-wrapper')) {
-                document.getElementById('autocomplete-list').classList.remove('active');
+                const list = document.getElementById('autocomplete-list');
+                if (list) list.classList.remove('active');
             }
         });
+        
+        // OPRAVA: Touch eventy pro mobilní zařízení - lepší focus handling
         if (isMobile) {
-            document.getElementById('map').addEventListener('touchstart', () => {
-                document.getElementById('guessInput').blur();
-            });
+            const map = document.getElementById('map');
+            if (map) {
+                map.addEventListener('touchstart', () => {
+                    if (guessInput) guessInput.blur();
+                }, {passive: true});
+            }
         }
     });
 
