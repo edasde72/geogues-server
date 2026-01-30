@@ -52,7 +52,7 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e6
 });
 
-// DATA ZEMÍ - kompletní seznam pro hru
+// DATA ZEMÍ
 const countriesData = {
   europe: [
     ["Albánie",41.32,19.81,["albania"]],
@@ -262,6 +262,58 @@ const countriesData = {
 };
 countriesData.world = [...countriesData.europe, ...countriesData.asia, ...countriesData.americas, ...countriesData.africa, ...countriesData.oceania];
 
+// DAILY CHALLENGE SYSTEM
+const DAILY_DURATION = 180; // 3 minuty v sekundách
+const DAILY_COUNTRIES = 20;
+
+const dailyChallenge = {
+  currentDate: null,
+  countries: [],
+  leaderboard: [],
+  playedIPs: new Set(),
+  startedAt: null
+};
+
+function getLocalDateString() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function generateDailyChallenge() {
+  const today = getLocalDateString();
+  if (dailyChallenge.currentDate === today) return;
+  
+  dailyChallenge.currentDate = today;
+  dailyChallenge.playedIPs.clear();
+  dailyChallenge.leaderboard = [];
+  dailyChallenge.startedAt = Date.now();
+  
+  // Vyber 20 náhodných zemí z celého světa
+  const world = countriesData.world;
+  const selected = [];
+  const usedIndices = new Set();
+  
+  while (selected.length < DAILY_COUNTRIES) {
+    const idx = Math.floor(Math.random() * world.length);
+    if (!usedIndices.has(idx)) {
+      usedIndices.add(idx);
+      selected.push(world[idx]);
+    }
+  }
+  
+  dailyChallenge.countries = selected;
+  console.log(`Generated daily challenge for ${today} with ${selected.length} countries`);
+}
+
+function getClientIP(socket) {
+  return socket.handshake.headers['x-forwarded-for'] || 
+         socket.handshake.address || 
+         socket.conn.remoteAddress;
+}
+
+// Kontrola a generování při startu serveru a každou půlnoc
+generateDailyChallenge();
+setInterval(generateDailyChallenge, 60000); // Kontrola každou minutu
+
 const MAX_MSG = 200;
 const sanitize = (str) => typeof str === 'string' ? str.slice(0, MAX_MSG).replace(/[<>]/g, '') : '';
 const validateContinent = (c) => ['world','europe','asia','americas','africa','oceania'].includes(c) ? c : 'world';
@@ -270,7 +322,6 @@ const generateCode = () => crypto.randomBytes(3).toString('hex').toUpperCase();
 const rooms = new Map();
 const socketRooms = new Map();
 
-// Cleanup prázdných místností každých 5 minut
 setInterval(() => {
   for (const [code, room] of rooms.entries()) {
     const activePlayers = room.players.filter(p => io.sockets.sockets.has(p.id));
@@ -292,11 +343,90 @@ function rateLimit(id, event, max=10, windowMs=10000) {
 }
 
 io.on("connection", socket => {
-  console.log("Připojen hráč:", socket.id);
+  const clientIP = getClientIP(socket);
+  console.log("Připojen hráč:", socket.id, "IP:", clientIP);
   
-  // Pošleme inicializační data (všechny země pro nášeptávání na klientovi)
   socket.emit('init-data', { countries: countriesData });
 
+  // DAILY CHALLENGE SOCKET EVENTS
+  socket.on("check-daily", () => {
+    generateDailyChallenge(); // Ujistíme se že máme dnešní
+    
+    const played = dailyChallenge.playedIPs.has(clientIP);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const msUntilNext = tomorrow - Date.now();
+    
+    // Seřadíme žebříček: nejdřív podle počtu (sestupně), pak podle času (vzestupně)
+    const sortedLeaderboard = [...dailyChallenge.leaderboard]
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.time - b.time;
+      })
+      .slice(0, 20); // Top 20
+    
+    socket.emit("daily-status", {
+      played,
+      nextChallenge: msUntilNext,
+      leaderboard: sortedLeaderboard,
+      totalPlayers: dailyChallenge.leaderboard.length
+    });
+  });
+
+  socket.on("start-daily", () => {
+    if (!rateLimit(socket.id, 'daily-start', 2, 60000)) return;
+    generateDailyChallenge();
+    
+    if (dailyChallenge.playedIPs.has(clientIP)) {
+      socket.emit("daily-error", "already_played");
+      return;
+    }
+    
+    socket.emit("daily-started", {
+      countries: dailyChallenge.countries,
+      timeLimit: DAILY_DURATION
+    });
+  });
+
+  socket.on("submit-daily", ({ name, count, timeSeconds }) => {
+    if (!rateLimit(socket.id, 'daily-submit', 2, 60000)) return;
+    
+    if (dailyChallenge.playedIPs.has(clientIP)) {
+      socket.emit("daily-error", "already_played");
+      return;
+    }
+    
+    // Validace
+    if (typeof count !== 'number' || count < 0 || count > DAILY_COUNTRIES) return;
+    if (typeof timeSeconds !== 'number' || timeSeconds < 0 || timeSeconds > DAILY_DURATION) return;
+    
+    const entry = {
+      name: sanitize(name).slice(0, 20) || "Anonymous",
+      count: Math.floor(count),
+      time: Math.floor(timeSeconds),
+      timestamp: Date.now(),
+      ip: clientIP
+    };
+    
+    dailyChallenge.leaderboard.push(entry);
+    dailyChallenge.playedIPs.add(clientIP);
+    
+    // Spočítat rank
+    const sorted = [...dailyChallenge.leaderboard].sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.time - b.time;
+    });
+    const rank = sorted.findIndex(e => e.ip === clientIP) + 1;
+    
+    socket.emit("daily-submitted", { rank, total: dailyChallenge.leaderboard.length });
+    
+    // Broadcast aktualizace žebříčku všem připojeným
+    const top10 = sorted.slice(0, 10);
+    io.emit("daily-leaderboard-update", top10);
+  });
+
+  // EXISTUJÍCÍ MULTIPLAYER EVENTS (beze změny)
   socket.on("create-room", ({ continent, maxPlayers }) => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
     const code = generateCode();
@@ -489,7 +619,6 @@ io.on("connection", socket => {
     });
     
     if (votes === total && total > 0) {
-      // Restart hry
       room.players.forEach(p => {
         p.score = 0;
         p.out = false;
@@ -559,7 +688,6 @@ io.on("connection", socket => {
           
           updatePlayerList(code, room);
           
-          // Pokud zůstal jen jeden hráč, hra končí
           if (room.gameState.started && room.players.length === 1) {
             io.to(code).emit("game-over", { 
               winners: [{id: room.players[0].id, name: room.players[0].name}],
