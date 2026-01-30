@@ -1,4 +1,3 @@
-
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -21,7 +20,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'];
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) callback(null, true);
@@ -53,7 +52,7 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e6
 });
 
-// ROZŠÍŘENÉ ZEMĚ - více než 100 zemí celkem
+// DATA ZEMÍ - kompletní seznam pro hru
 const countriesData = {
   europe: [
     ["Albánie",41.32,19.81,["albania"]],
@@ -123,7 +122,7 @@ const countriesData = {
     ["Jordánsko",31.94,35.92,["jordan"]],
     ["Kazachstán",51.16,71.42,["kazakhstan"]],
     ["Kuvajt",29.37,47.97,["kuwait"]],
-    ["Kyrgyzstán",42.87,74.59,["kyrgyzstan","kyrgyzstan"]],
+    ["Kyrgyzstán",42.87,74.59,["kyrgyzstan"]],
     ["Laos",17.97,102.63,["laos"]],
     ["Libanon",33.89,35.50,["lebanon"]],
     ["Malajsie",3.13,101.68,["malaysia"]],
@@ -173,7 +172,7 @@ const countriesData = {
     ["Guyana",6.80,-58.16,["guyana"]],
     ["Haiti",18.59,-72.30,["haiti"]],
     ["Honduras",14.07,-87.20,["honduras"]],
-    ["Jamajka",18.01,-76.80,["jamaica"]],
+    ["Jamajка",18.01,-76.80,["jamaica"]],
     ["Mexiko",19.43,-99.13,["mexico"]],
     ["Nikaragua",12.86,-85.20,["nicaragua"]],
     ["Panama",8.98,-79.51,["panama"]],
@@ -271,11 +270,13 @@ const generateCode = () => crypto.randomBytes(3).toString('hex').toUpperCase();
 const rooms = new Map();
 const socketRooms = new Map();
 
+// Cleanup prázdných místností každých 5 minut
 setInterval(() => {
   for (const [code, room] of rooms.entries()) {
     const activePlayers = room.players.filter(p => io.sockets.sockets.has(p.id));
     if (activePlayers.length === 0) {
       rooms.delete(code);
+      console.log(`Smazána prázdná místnost: ${code}`);
     }
   }
 }, 300000);
@@ -291,7 +292,9 @@ function rateLimit(id, event, max=10, windowMs=10000) {
 }
 
 io.on("connection", socket => {
-  console.log("Connected:", socket.id);
+  console.log("Připojen hráč:", socket.id);
+  
+  // Pošleme inicializační data (všechny země pro nášeptávání na klientovi)
   socket.emit('init-data', { countries: countriesData });
 
   socket.on("create-room", ({ continent, maxPlayers }) => {
@@ -320,10 +323,11 @@ io.on("connection", socket => {
     socket.join(code);
     socketRooms.set(socket.id, code);
     socket.emit("room-created", { code, continent: c, maxPlayers: playerLimit });
+    console.log(`Vytvořena místnost ${code}, host: ${socket.id}`);
   });
 
   socket.on("join-room", ({ code, nickname }) => {
-    if (!rateLimit(socket.id, 'join', 5, 60000)) return socket.emit('join-error', "Too many attempts");
+    if (!rateLimit(socket.id, 'join', 5, 60000)) return socket.emit('join-error', "Příliš mnoho pokusů o připojení");
     if (typeof code !== 'string') return;
     code = code.toUpperCase().slice(0,10);
     
@@ -344,6 +348,7 @@ io.on("connection", socket => {
     socket.to(code).emit("player-joined", { name: name, count: room.players.length, max: room.maxPlayers });
     addChatMessage(code, 'Systém', `${name} se připojil`, socket.id);
     updatePlayerList(code, room);
+    console.log(`Hráč ${name} se připojil do místnosti ${code}`);
   });
 
   socket.on("chat-message", (msg) => {
@@ -377,10 +382,15 @@ io.on("connection", socket => {
     if (room.players.length < 2) return socket.emit("error", "Potřebuješ alespoň 2 hráče");
     
     room.rematchVotes.clear();
-    
     room.gameState.started = true;
-    io.to(code).emit("game-started", { totalRounds: room.gameState.totalRounds, players: room.players.map(p => ({id: p.id, name: p.name})) });
+    
+    io.to(code).emit("game-started", { 
+      totalRounds: room.gameState.totalRounds, 
+      players: room.players.map(p => ({id: p.id, name: p.name})) 
+    });
+    
     startNewRound(code, room);
+    console.log(`Hra v místnosti ${code} začala`);
   });
 
   socket.on("correct-guess", () => {
@@ -479,6 +489,7 @@ io.on("connection", socket => {
     });
     
     if (votes === total && total > 0) {
+      // Restart hry
       room.players.forEach(p => {
         p.score = 0;
         p.out = false;
@@ -496,6 +507,7 @@ io.on("connection", socket => {
         players: room.players.map(p => ({id: p.id, name: p.name})) 
       });
       startNewRound(code, room);
+      console.log(`Rematch v místnosti ${code}`);
     }
   });
 
@@ -535,6 +547,7 @@ io.on("connection", socket => {
         
         if (room.players.length === 0) {
           rooms.delete(code);
+          console.log(`Místnost ${code} smazána (poslední hráč odešel)`);
         } else {
           if (room.host === socket.id && room.players.length > 0) {
             room.host = room.players[0].id;
@@ -546,17 +559,20 @@ io.on("connection", socket => {
           
           updatePlayerList(code, room);
           
+          // Pokud zůstal jen jeden hráč, hra končí
           if (room.gameState.started && room.players.length === 1) {
             io.to(code).emit("game-over", { 
               winners: [{id: room.players[0].id, name: room.players[0].name}],
               scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
               isDraw: false
             });
+            room.gameState.started = false;
           }
         }
       }
     }
     socketRooms.delete(socket.id);
+    console.log("Odpojen hráč:", socket.id);
   });
 
   function addChatMessage(code, sender, text, excludeId) {
@@ -619,8 +635,10 @@ io.on("connection", socket => {
       scores: room.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
       isDraw: winners.length > 1
     });
+    
+    console.log(`Konec hry v místnosti ${code}, vítězové: ${winners.map(w => w.name).join(', ')}`);
   }
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server běží na portu ${PORT}`));
