@@ -52,6 +52,84 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e6
 });
 
+// DAILY CHALLENGE - In-memory storage (v produkci použij Redis/DB)
+const dailyChallengeData = {
+  results: new Map(), // key: date (YYYY-MM-DD), value: [{name, countries, timeSeconds, timestamp}]
+  playerTracking: new Map() // key: socket.id, value: {date, played, scoreSubmitted}
+};
+
+// Pomocná funkce pro získání dnešního data (YYYY-MM-DD)
+function getTodayString() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Generování denních zemí (deterministické podle data)
+function generateDailyCountries(dateStr, allCountries) {
+  const seed = dateStr.split('-').join('') * 1; // Simple seed z data
+  const shuffled = [...allCountries];
+  
+  // Fisher-Yates shuffle se seedem
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = (seed * (i + 1)) % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  
+  return shuffled.slice(0, 20);
+}
+
+// Endpoint pro získání denní výzvy
+app.get('/api/daily-challenge', (req, res) => {
+  const today = getTodayString();
+  const ip = req.ip;
+  
+  res.json({
+    date: today,
+    expiresAt: new Date(new Date().setHours(24, 0, 0, 0)).toISOString()
+  });
+});
+
+// Uložení výsledku denní výzvy
+app.post('/api/daily-challenge/submit', (req, res) => {
+  const { name, countries, timeSeconds, date } = req.body;
+  const today = getTodayString();
+  
+  if (date !== today) {
+    return res.status(400).json({ error: 'Invalid date' });
+  }
+  
+  if (!dailyChallengeData.results.has(today)) {
+    dailyChallengeData.results.set(today, []);
+  }
+  
+  const todayResults = dailyChallengeData.results.get(today);
+  
+  // Kontrola duplicity jména (pro jednoduchost - poslední pokus platí)
+  const existingIndex = todayResults.findIndex(r => r.name === name);
+  if (existingIndex !== -1) {
+    if (countries > todayResults[existingIndex].countries || 
+        (countries === todayResults[existingIndex].countries && timeSeconds < todayResults[existingIndex].timeSeconds)) {
+      todayResults[existingIndex] = { name, countries, timeSeconds, timestamp: new Date() };
+    }
+  } else {
+    todayResults.push({ name, countries, timeSeconds, timestamp: new Date() });
+  }
+  
+  // Seřazení: více zemí je lepší, při stejném počtu méně času je lepší
+  todayResults.sort((a, b) => {
+    if (b.countries !== a.countries) return b.countries - a.countries;
+    return a.timeSeconds - b.timeSeconds;
+  });
+  
+  res.json({ success: true, rank: todayResults.findIndex(r => r.name === name) + 1 });
+});
+
+// Získání žebříčku
+app.get('/api/daily-challenge/leaderboard', (req, res) => {
+  const today = getTodayString();
+  const results = dailyChallengeData.results.get(today) || [];
+  res.json({ date: today, results: results.slice(0, 100) });
+});
+
 // DATA ZEMÍ - kompletní seznam pro hru
 const countriesData = {
   europe: [
@@ -296,6 +374,76 @@ io.on("connection", socket => {
   
   // Pošleme inicializační data (všechny země pro nášeptávání na klientovi)
   socket.emit('init-data', { countries: countriesData });
+
+  // Daily Challenge - kontrola jestli už hrál
+  socket.on("check-daily-status", () => {
+    const today = getTodayString();
+    const played = dailyChallengeData.playerTracking.get(socket.id);
+    
+    if (played && played.date === today) {
+      socket.emit("daily-status", { 
+        canPlay: false, 
+        nextReset: new Date(new Date().setHours(24, 0, 0, 0)).toISOString(),
+        result: played.result || null
+      });
+    } else {
+      // Vygenerujeme denní země
+      const dailyCountries = generateDailyCountries(today, countriesData.world);
+      socket.emit("daily-status", { 
+        canPlay: true, 
+        countries: dailyCountries,
+        date: today
+      });
+    }
+  });
+
+  // Uložení výsledku Daily Challenge
+  socket.on("submit-daily-result", (data) => {
+    if (!rateLimit(socket.id, 'daily-submit', 1, 86400000)) return; // Max 1x za den
+    
+    const today = getTodayString();
+    const { name, countries, timeSeconds } = data;
+    
+    if (!dailyChallengeData.results.has(today)) {
+      dailyChallengeData.results.set(today, []);
+    }
+    
+    const todayResults = dailyChallengeData.results.get(today);
+    
+    // Uložíme výsledek hráče
+    dailyChallengeData.playerTracking.set(socket.id, {
+      date: today,
+      result: { name, countries, timeSeconds }
+    });
+    
+    // Přidáme do žebříčku
+    const existingIndex = todayResults.findIndex(r => r.name === name);
+    if (existingIndex !== -1) {
+      // Aktualizace pokud je lepší
+      if (countries > todayResults[existingIndex].countries || 
+          (countries === todayResults[existingIndex].countries && timeSeconds < todayResults[existingIndex].timeSeconds)) {
+        todayResults[existingIndex] = { name, countries, timeSeconds, timestamp: new Date() };
+      }
+    } else {
+      todayResults.push({ name, countries, timeSeconds, timestamp: new Date() });
+    }
+    
+    // Seřazení: více zemí je lepší, při stejném počtu méně času je lepší
+    todayResults.sort((a, b) => {
+      if (b.countries !== a.countries) return b.countries - a.countries;
+      return a.timeSeconds - b.timeSeconds;
+    });
+    
+    const rank = todayResults.findIndex(r => r.name === name) + 1;
+    socket.emit("daily-result-saved", { rank, total: todayResults.length });
+  });
+
+  // Získání žebříčku
+  socket.on("get-daily-leaderboard", () => {
+    const today = getTodayString();
+    const results = dailyChallengeData.results.get(today) || [];
+    socket.emit("daily-leaderboard", { results: results.slice(0, 100) });
+  });
 
   socket.on("create-room", ({ continent, maxPlayers }) => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
@@ -572,6 +720,10 @@ io.on("connection", socket => {
       }
     }
     socketRooms.delete(socket.id);
+    
+    // Cleanup daily challenge tracking
+    dailyChallengeData.playerTracking.delete(socket.id);
+    
     console.log("Odpojen hráč:", socket.id);
   });
 
