@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GeoScale</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css " crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js " crossorigin=""></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js " crossorigin=""></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; touch-action: manipulation; }
@@ -511,6 +511,9 @@
         .spinner { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .map-container { position: relative; flex: 1; display: flex; min-height: 0; }
+        
+        /* NOVÉ: Tlačítko přepínání mapy v game panelu - odstraněno, přesunuto do menu */
+        
         .controls { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; backdrop-filter: blur(10px); max-height: 60vh; overflow-y: auto; }
         #menu.controls { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; max-height: none; }
         h1 { color: #333; margin-bottom: 10px; font-size: clamp(28px, 5vw, 36px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -522,6 +525,61 @@
         .menu-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: left; }
         .menu-section h2 { font-size: 20px; color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
         .menu-section h2 span { font-size: 24px; }
+        
+        /* NOVÉ: Styl pro výběr typu mapy v menu */
+        .map-type-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .map-type-section h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .map-type-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .map-type-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .map-type-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .map-type-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
         
         .highscore-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .highscore-section h2 { color: white; }
@@ -535,7 +593,7 @@
         .no-scores { text-align: center; opacity: 0.8; font-style: italic; padding: 20px; }
         .clear-scores { margin-top: 10px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; width: 100%; }
         
-        .menu { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+        .menu { display: flex; flex-direction: column; gap: 0; width: 100%; }
         .menu-btn { padding: 18px; font-size: 18px; border: none; border-radius: 12px; color: white; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 100%; font-weight: 600; white-space: nowrap; }
         .menu-btn:active { transform: scale(0.98); }
         .menu-btn.single { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
@@ -546,7 +604,7 @@
         
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         
-        .mp-section { margin-top: 10px; padding-top: 15px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 10px; }
+        .mp-section { margin-top: 20px; padding-top: 20px; border-top: 2px solid #eee; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; }
         .select-group { display: flex; gap: 10px; margin-bottom: 10px; }
         .continent-select, .player-count-select { padding: 12px; border-radius: 10px; border: 2px solid #667eea; font-size: 16px; flex: 1; background: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
@@ -587,7 +645,7 @@
         input[type="text"]:focus { border-color: #667eea; }
         input.shake { animation: shake 0.5s; border-color: #ef4444; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
-        button:not(.menu-btn):not(.small):not(.lang-btn):not(.toggle-btn) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        button:not(.menu-btn):not(.small):not(.lang-btn):not(.toggle-btn):not(.map-type-btn) { padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
         button:disabled { opacity: 0.5; cursor: not-allowed; background: #ccc !important; }
         button.small { padding: 10px 20px; font-size: 14px; background: #999; color: white; border: none; border-radius: 20px; cursor: pointer; }
         
@@ -648,6 +706,14 @@
             }
             
             .lang-btn {
+                width: 100%;
+            }
+            
+            .map-type-buttons {
+                flex-direction: column;
+            }
+            
+            .map-type-btn {
                 width: 100%;
             }
             
@@ -865,7 +931,21 @@
             </div>
         </div>
         
-        <div class="menu" style="margin-top: 20px;">
+        <!-- NOVÁ SEKCE: Výběr typu mapy -->
+        <div class="map-type-section">
+            <h2><span>🗺️</span> <span id="map-type-title">Typ mapy</span></h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px; line-height: 1.5;" id="map-type-desc">Vyber si zobrazení mapy před začátkem hry.</p>
+            <div class="map-type-buttons">
+                <button class="map-type-btn active" id="btn-map-normal" onclick="game.setMapType('normal')">
+                    <span style="font-size: 20px;">🗺️</span> <span id="text-map-normal">Normální</span>
+                </button>
+                <button class="map-type-btn" id="btn-map-satellite" onclick="game.setMapType('satellite')">
+                    <span style="font-size: 20px;">🛰️</span> <span id="text-map-satellite">Satelitní</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="menu" style="margin-top: 0;">
             <div class="mp-section">
                 <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;" id="mp-title">👥 Multiplayer</p>
                 
@@ -945,7 +1025,7 @@
     </div>
 
     <div id="game-panel" class="hidden" style="flex: 1; display: flex; flex-direction: column;">
-        <div class="map-container">
+        <div class="map-container" style="position: relative;">
             <div id="map"></div>
             <div id="map-loader" class="hidden"><div class="spinner"></div><span id="loading-text">Načítání...</span></div>
         </div>
@@ -1027,6 +1107,11 @@ const game = (function() {
                 you: "(Ty)", new_game: "🔄 Nová hra", main_menu: "🏠 Hlavní menu",
                 rematch_waiting: "⏳ Čekání na ostatní...", ready: "Připraveni",
                 highscore_title: "Nejlepší skóre", menu_no_scores: "Zatím žádné skóre. Zahrej si singleplayer!",
+                // NOVÉ: Překlady pro typ mapy
+                map_type_title: "🗺️ Typ mapy",
+                map_type_desc: "Vyber si zobrazení mapy před začátkem hry.",
+                map_type_normal: "Normální",
+                map_type_satellite: "Satelitní",
                 players_2: "2 hráči",
                 players_3: "3 hráči",
                 players_4: "4 hráči",
@@ -1081,6 +1166,11 @@ const game = (function() {
                 you: "(You)", new_game: "🔄 New Game", main_menu: "🏠 Main Menu",
                 rematch_waiting: "⏳ Waiting for others...", ready: "Ready",
                 highscore_title: "High Scores", menu_no_scores: "No scores yet. Play singleplayer!",
+                // NOVÉ: Překlady pro typ mapy v angličtině
+                map_type_title: "🗺️ Map Type",
+                map_type_desc: "Choose your map view before starting the game.",
+                map_type_normal: "Normal",
+                map_type_satellite: "Satellite",
                 players_2: "2 players",
                 players_3: "3 players",
                 players_4: "4 players",
@@ -1183,6 +1273,8 @@ const game = (function() {
 
     // Sound settings
     let soundEnabled = localStorage.getItem('geoguessr_sound') !== 'false';
+    // NOVÉ: Map type settings - načtení z localStorage
+    let mapType = localStorage.getItem('geoguessr_map_type') || 'normal';
     const STATS_KEY = 'geoguessr_stats_v2';
     
     function playSound(type) {
@@ -1231,6 +1323,13 @@ const game = (function() {
         document.getElementById('btn-en').className = 'lang-btn ' + (i18n.currentLang === 'en' ? 'active' : '');
         document.getElementById('btn-back-play').textContent = i18n.t('back_to_play');
         updateSoundButton();
+        
+        // NOVÉ: Aktualizace textů pro typ mapy
+        document.getElementById('map-type-title').textContent = i18n.t('map_type_title');
+        document.getElementById('map-type-desc').textContent = i18n.t('map_type_desc');
+        document.getElementById('text-map-normal').textContent = i18n.t('map_type_normal');
+        document.getElementById('text-map-satellite').textContent = i18n.t('map_type_satellite');
+        updateMapTypeButtons();
         
         // Info section
         document.getElementById('info-title').textContent = i18n.t('info_title');
@@ -1334,6 +1433,29 @@ const game = (function() {
         soundEnabled = !soundEnabled;
         localStorage.setItem('geoguessr_sound', soundEnabled);
         updateSoundButton();
+    }
+
+    // NOVÉ: Aktualizace tlačítek typu mapy
+    function updateMapTypeButtons() {
+        const btnNormal = document.getElementById('btn-map-normal');
+        const btnSatellite = document.getElementById('btn-map-satellite');
+        if (!btnNormal || !btnSatellite) return;
+        
+        if (mapType === 'satellite') {
+            btnNormal.classList.remove('active');
+            btnSatellite.classList.add('active');
+        } else {
+            btnNormal.classList.add('active');
+            btnSatellite.classList.remove('active');
+        }
+    }
+
+    // NOVÉ: Nastavení typu mapy
+    function setMapType(type) {
+        if (type !== 'normal' && type !== 'satellite') return;
+        mapType = type;
+        localStorage.setItem('geoguessr_map_type', mapType);
+        updateMapTypeButtons();
     }
 
     function setLanguage(lang) {
@@ -1526,18 +1648,33 @@ const game = (function() {
     });
     
     const state = {
-        map: null, currentCountry: null, attempts: 0, gameMode: null,
-        score: 0, streak: 0, isHost: false, roomCode: null,
-        myId: null, players: [], maxPlayers: 4,
-        currentRound: 1, totalRounds: 5,
-        lastGuess: 0, lastChat: 0, finished: false,
-        guessCooldown: false, timeLeft: 300,
-        timerInterval: null, countriesGuessed: 0,
-        rematchVoted: false
+        map: null, 
+        currentCountry: null, 
+        attempts: 0, 
+        gameMode: null,
+        score: 0, 
+        streak: 0, 
+        isHost: false, 
+        roomCode: null,
+        myId: null, 
+        players: [], 
+        maxPlayers: 4,
+        currentRound: 1, 
+        totalRounds: 5,
+        lastGuess: 0, 
+        lastChat: 0, 
+        finished: false,
+        guessCooldown: false, 
+        timeLeft: 300,
+        timerInterval: null, 
+        countriesGuessed: 0,
+        rematchVoted: false,
+        currentTileLayer: null
     };
 
     const config = {
-        maxAttempts: 5, zoomLevels: [16, 13, 10, 6, 3],
+        maxAttempts: 5, 
+        zoomLevels: [16, 13, 10, 6, 3],
         singlePlayerTime: 300
     };
 
@@ -1550,6 +1687,48 @@ const game = (function() {
         }
     });
 
+    // Upravená funkce initMap pro použití globální mapType proměnné
+    function initMap() {
+        showMapLoader();
+        if (state.map) { 
+            state.map.remove(); 
+            state.map = null; 
+            document.getElementById('map').innerHTML = ''; 
+        }
+        state.map = L.map('map', { 
+            zoomControl: false, 
+            attributionControl: true,
+            dragging: false, 
+            scrollWheelZoom: false, 
+            doubleClickZoom: false, 
+            boxZoom: false, 
+            keyboard: false, 
+            touchZoom: false 
+        }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
+        
+        // Výběr tile layeru podle globální proměnné mapType
+        let tileUrl, attribution;
+        if (mapType === 'satellite') {
+            tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            attribution = '&copy; Esri';
+        } else {
+            tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            attribution = '&copy; OpenStreetMap';
+        }
+        
+        state.currentTileLayer = L.tileLayer(tileUrl, { 
+            crossOrigin: true,
+            attribution: attribution
+        }).addTo(state.map);
+        
+        setTimeout(() => {
+            if (state.map) {
+                state.map.invalidateSize();
+                hideMapLoader();
+            }
+        }, 2000);
+    }
+
     // Socket events
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
@@ -1559,6 +1738,7 @@ const game = (function() {
         document.getElementById('room-code').textContent = data.code;
         document.getElementById('max-count').textContent = data.maxPlayers;
         document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.map-type-section').classList.add('hidden'); // Skrytí výběru mapy v lobby
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
         updateLobbyPlayerList([{ id: socket.id, name: i18n.currentLang === 'en' ? 'Host' : 'Host', isHost: true }], state.maxPlayers);
@@ -1591,6 +1771,7 @@ const game = (function() {
         state.isHost = false;
         state.myId = data.yourId;
         document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.map-type-section').classList.add('hidden'); // Skrytí výběru mapy v lobby
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('guest-lobby').classList.remove('hidden');
@@ -1830,6 +2011,7 @@ const game = (function() {
     function cancelLobby() {
         document.getElementById('host-panel').classList.add('hidden');
         document.querySelector('.menu-grid').classList.remove('hidden');
+        document.querySelector('.map-type-section').classList.remove('hidden'); // Zobrazení výběru mapy zpět
         document.querySelector('.menu > .mp-section').classList.remove('hidden');
         socket.emit('leave-room');
     }
@@ -1841,12 +2023,14 @@ const game = (function() {
         document.getElementById('join-code').value = '';
         document.getElementById('join-error').textContent = '';
         document.querySelector('.menu-grid').classList.remove('hidden');
+        document.querySelector('.map-type-section').classList.remove('hidden'); // Zobrazení výběru mapy zpět
         document.querySelector('.menu > .mp-section').classList.remove('hidden');
         socket.emit('leave-room');
     }
 
     function showJoin() {
         document.querySelector('.menu-grid').classList.add('hidden');
+        document.querySelector('.map-type-section').classList.add('hidden'); // Skrytí výběru mapy při připojování
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('join-panel').classList.remove('hidden');
         document.getElementById('join-code').focus();
@@ -1909,20 +2093,6 @@ const game = (function() {
         document.getElementById('mp-scoreboard').classList.remove('hidden');
         document.getElementById('round-display').classList.remove('hidden');
         document.getElementById('game-over').classList.remove('show');
-    }
-
-    function initMap() {
-        showMapLoader();
-        if (state.map) { state.map.remove(); state.map = null; document.getElementById('map').innerHTML = ''; }
-        state.map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[0]);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(state.map);
-        
-        setTimeout(() => {
-            if (state.map) {
-                state.map.invalidateSize();
-                hideMapLoader();
-            }
-        }, 2000);
     }
 
     function startSingle() {
@@ -1995,6 +2165,7 @@ const game = (function() {
         document.getElementById('rematch-btn').style.display = 'inline-block';
         document.getElementById('rematch-btn').textContent = i18n.t('new_game');
         document.getElementById('rematch-btn').disabled = false;
+        state.rematchVoted = false;
         document.getElementById('rematch-status').classList.add('hidden');
         document.getElementById('game-over').classList.add('show');
     }
@@ -2106,6 +2277,10 @@ const game = (function() {
         if (document.fullscreenElement) {
             document.exitFullscreen().catch(e => {});
         }
+        
+        // Zobrazení výběru mapy zpět v menu
+        document.querySelector('.map-type-section').classList.remove('hidden');
+        
         socket.disconnect();
         location.href = location.pathname;
     }
@@ -2182,6 +2357,7 @@ const game = (function() {
             document.getElementById('host-panel').classList.add('hidden');
             document.getElementById('join-panel').classList.add('hidden');
             document.querySelector('.menu-grid').classList.remove('hidden');
+            document.querySelector('.map-type-section').classList.remove('hidden'); // Zobrazení výběru mapy
             document.querySelector('.menu > .mp-section').classList.remove('hidden');
         }
         document.getElementById('nav-links').classList.remove('active');
@@ -2196,11 +2372,13 @@ const game = (function() {
     // Init
     document.addEventListener('DOMContentLoaded', () => {
         updateAllTexts();
+        updateMapTypeButtons(); // Inicializace tlačítek mapy při startu
         const url = new URLSearchParams(location.search);
         const room = url.get('room');
         if (room) {
             showSection(null, 'play');
             document.querySelector('.menu-grid').classList.add('hidden');
+            document.querySelector('.map-type-section').classList.add('hidden'); // Skrytí výběru mapy při přímém připojení
             document.querySelector('.menu > .mp-section').classList.add('hidden');
             document.getElementById('join-panel').classList.remove('hidden');
             document.getElementById('join-code').value = room.slice(0, 10);
@@ -2240,7 +2418,7 @@ const game = (function() {
         showSection, toggleMobileMenu, toggleSound, setLanguage,
         startSingle, startHost, showJoin, joinGame, startGameFromLobby,
         sendChat, copyLink, makeGuess, rematch, backToMenu,
-        cancelLobby, cancelJoin, clearStats
+        cancelLobby, cancelJoin, clearStats, setMapType // Přidáno setMapType
     };
 })();
 </script>
