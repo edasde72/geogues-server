@@ -2057,10 +2057,10 @@ const game = (function() {
     function hideMapLoader() { document.getElementById('map-loader').classList.add('hidden'); }
 
     function startHost() {
-        const continent = document.getElementById('continent-select').value;
-        const maxPlayers = parseInt(document.getElementById('max-players').value);
-        socket.emit('create-room', { continent, maxPlayers });
-    }
+    const continent = document.getElementById('continent-select').value.toLowerCase(); // Přidat .toLowerCase()
+    const maxPlayers = parseInt(document.getElementById('max-players').value);
+    socket.emit('create-room', { continent, maxPlayers });
+}
 
     function joinGame() {
         const code = document.getElementById('join-code').value;
