@@ -11,12 +11,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Denní výzva - globální proměnná pro aktuální den
-let dailyChallengeCache = {
-    date: null,
-    countries: []
-};
-
 const BLOCKED_FILES = ['server.js', '.env', '.env.local', 'package.json', 'package-lock.json'];
 app.use((req, res, next) => {
   const requested = req.path.toLowerCase();
@@ -178,7 +172,7 @@ const countriesData = {
     ["Guyana",6.80,-58.16,["guyana"]],
     ["Haiti",18.59,-72.30,["haiti"]],
     ["Honduras",14.07,-87.20,["honduras"]],
-    ["Jamajka",18.01,-76.80,["jamaica"]],
+    ["Jamajка",18.01,-76.80,["jamaica"]],
     ["Mexiko",19.43,-99.13,["mexico"]],
     ["Nikaragua",12.86,-85.20,["nicaragua"]],
     ["Panama",8.98,-79.51,["panama"]],
@@ -268,39 +262,6 @@ const countriesData = {
 };
 countriesData.world = [...countriesData.europe, ...countriesData.asia, ...countriesData.americas, ...countriesData.africa, ...countriesData.oceania];
 
-// Funkce pro generování denní výzvy
-function getDailyChallenge() {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
-    if (dailyChallengeCache.date === today && dailyChallengeCache.countries.length > 0) {
-        return dailyChallengeCache.countries;
-    }
-    
-    // Seeded random generátor pro deterministický výsledek
-    let seed = parseInt(today.replace(/-/g, ''));
-    const random = () => {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    };
-    
-    // Zamícháme země světa
-    const worldCountries = [...countriesData.world];
-    for (let i = worldCountries.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [worldCountries[i], worldCountries[j]] = [worldCountries[j], worldCountries[i]];
-    }
-    
-    // Vybereme 5 zemí
-    const selected = worldCountries.slice(0, 5);
-    
-    dailyChallengeCache = {
-        date: today,
-        countries: selected
-    };
-    
-    return selected;
-}
-
 const MAX_MSG = 200;
 const sanitize = (str) => typeof str === 'string' ? str.slice(0, MAX_MSG).replace(/[<>]/g, '') : '';
 const validateContinent = (c) => ['world','europe','asia','americas','africa','oceania'].includes(c) ? c : 'world';
@@ -335,15 +296,6 @@ io.on("connection", socket => {
   
   // Pošleme inicializační data (všechny země pro nášeptávání na klientovi)
   socket.emit('init-data', { countries: countriesData });
-  
-  // Nový event pro denní výzvu
-  socket.on("get-daily-challenge", () => {
-      const dailyCountries = getDailyChallenge();
-      socket.emit("daily-challenge-data", {
-          countries: dailyCountries,
-          date: dailyChallengeCache.date
-      });
-  });
 
   socket.on("create-room", ({ continent, maxPlayers }) => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
