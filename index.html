@@ -934,6 +934,51 @@
                 <button onclick="game.startSingle()" class="menu-btn single" style="margin-bottom: 10px; background: white; color: #667eea;" data-i18n="singlePlayerBtn">👤 Single Player (5 min)</button>
             </div>
         </div>
+        <!-- Friends panel -->
+<div id="friends-panel" class="menu-section hidden" style="margin-top: 20px;">
+  <h2><span>👥</span> <span data-i18n="friends">Přátelé</span></h2>
+  <div id="friends-list" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;">
+    <div class="no-scores" data-i18n="noFriends">Zatím žádní přátelé online</div>
+  </div>
+  <input type="text" id="friend-id-input" data-i18n-placeholder="enterFriendCode" placeholder="Zadej ID přítele..." style="width: 100%; margin-bottom: 10px; padding: 10px;">
+  <button onclick="game.addFriend()" class="menu-btn" style="width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" data-i18n="addFriend">Přidat přítele</button>
+</div>
+
+<!-- Daily Challenge Button -->
+<button onclick="game.startDailyChallenge()" class="menu-btn single" style="margin-top: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+  📅 <span data-i18n="dailyChallenge">Denní výzva</span>
+</button>
+
+<!-- Bot controls (v host panelu) -->
+<div id="bot-controls" class="hidden" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #eee;">
+  <p style="font-size: 16px; margin-bottom: 10px; font-weight: 600;" data-i18n="addBots">🤖 Přidat boty</p>
+  <div class="select-group">
+    <select id="bot-difficulty" class="continent-select">
+      <option value="easy" data-i18n="botEasy">Lehký (30%)</option>
+      <option value="medium" selected data-i18n="botMedium">Střední (50%)</option>
+      <option value="hard" data-i18n="botHard">Těžký (70%)</option>
+    </select>
+    <select id="bot-count" class="player-count-select">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select>
+  </div>
+  <button onclick="game.addBots()" class="menu-btn" style="width: 100%; background: #667eea;" data-i18n="addBotsBtn">Přidat do hry</button>
+</div>
+
+<!-- Daily Challenge Modal -->
+<div id="daily-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px;">
+  <div style="background: white; border-radius: 20px; padding: 30px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto;">
+    <h2 style="color: #333; margin-bottom: 20px; text-align: center;">📅 <span data-i18n="dailyChallengeTitle">Dnešní výzva</span></h2>
+    <div id="daily-content">
+      <p style="text-align: center; color: #666; margin-bottom: 20px;" data-i18n="dailyDesc">5 zemí. Stejné pro všechny. Zvládneš to lépe než ostatní?</p>
+      <div id="daily-leaderboard" style="margin-bottom: 20px;"></div>
+      <button onclick="game.playDailyChallenge()" class="menu-btn start-btn" style="width: 100%;" data-i18n="playDaily">Hrát denní výzvu</button>
+      <button onclick="game.closeDaily()" class="small" style="width: 100%; margin-top: 10px;" data-i18n="close">Zavřít</button>
+    </div>
+  </div>
+</div>
         
         <div class="menu" style="margin-top: 20px;">
             <div class="mp-section">
@@ -1275,7 +1320,26 @@ const game = (function() {
             enterName: 'Zadej svoje jméno pro tabulku nejlepších:',
             attempts: 'Pokus',
             attemptsLeft: 'Zbývá pokusů',
-            detailLevel: ["Velmi detailní", "Detailní", "Město", "Region", "Kontinent"]
+            detailLevel: ["Velmi detailní", "Detailní", "Město", "Region", "Kontinent"],
+             friends: "Přátelé",
+            noFriends: "Zatím žádní přátelé. Přidej je podle ID!",
+            noFriendsOnline: "Žádní přátelé online",
+            enterFriendCode: "ID přítele...",
+            addFriend: "Přidat přítele",
+            removeFriend: "Odebrat",
+            invite: "Pozvat",
+            addBots: "Přidat boty",
+            addBotsBtn: "Přidat do hry",
+            botEasy: "Lehký (30% úspěšnost)",
+            botMedium: "Střední (50% úspěšnost)",
+            botHard: "Těžký (70% úspěšnost)",
+            dailyChallenge: "Denní výzva",
+            dailyChallengeTitle: "Dnešní výzva",
+            dailyDesc: "5 náhodných zemí. Stejné pro všechny hráče na světě. Jak si stojíš?",
+            playDaily: "Hrát denní výzvu",
+            todayLeaderboard: "Dnešní žebříček",
+            dailyComplete: "Denní výzva dokončena!",
+            close: "Zavřít"
         },
         en: {
             navInfo: 'Information',
@@ -1398,7 +1462,26 @@ const game = (function() {
             enterName: 'Enter your name for the leaderboard:',
             attempts: 'Attempt',
             attemptsLeft: 'Attempts left',
-            detailLevel: ["Very detailed", "Detailed", "City", "Region", "Continent"]
+            detailLevel: ["Very detailed", "Detailed", "City", "Region", "Continent"],
+            friends: "Friends",
+            noFriends: "No friends yet. Add them by ID!",
+            noFriendsOnline: "No friends online",
+            enterFriendCode: "Friend's ID...",
+            addFriend: "Add Friend",
+            removeFriend: "Remove",
+            invite: "Invite",
+            addBots: "Add Bots",
+            addBotsBtn: "Add to Game",
+            botEasy: "Easy (30% accuracy)",
+            botMedium: "Medium (50% accuracy)",
+            botHard: "Hard (70% accuracy)",
+            dailyChallenge: "Daily Challenge",
+            dailyChallengeTitle: "Today's Challenge",
+            dailyDesc: "5 random countries. Same for everyone worldwide. How do you rank?",
+            playDaily: "Play Daily Challenge",
+            todayLeaderboard: "Today's Leaderboard",
+            dailyComplete: "Daily Challenge Complete!",
+            close: "Close"
         }
     };
 
@@ -1742,6 +1825,166 @@ const game = (function() {
         countriesGuessed: 0,
         rematchVoted: false
     };
+    // Přidej do state objektu:
+const state = {
+  // ... existující ...
+  friends: JSON.parse(localStorage.getItem('geoguessr_friends') || '[]'),
+  dailyPlayed: false,
+  isDailyChallenge: false
+};
+
+// Přidej metody do return objektu:
+
+async function addFriend() {
+  const input = document.getElementById('friend-id-input');
+  const id = input.value.trim();
+  if(!id) return;
+  
+  if(!state.friends.includes(id)) {
+    state.friends.push(id);
+    localStorage.setItem('geoguessr_friends', JSON.stringify(state.friends));
+    input.value = '';
+    showToast(currentLang === 'cs' ? 'Přítel přidán!' : 'Friend added!');
+    refreshFriendsList();
+  }
+}
+
+function removeFriend(id) {
+  state.friends = state.friends.filter(f => f !== id);
+  localStorage.setItem('geoguessr_friends', JSON.stringify(state.friends));
+  refreshFriendsList();
+}
+
+function refreshFriendsList() {
+  const list = document.getElementById('friends-list');
+  if(state.friends.length === 0) {
+    list.innerHTML = `<div class="no-scores">${t('noFriends')}</div>`;
+    return;
+  }
+  
+  // Požádáme server o status (simulace - ve skutečnosti bychom poslali seznam ID)
+  list.innerHTML = state.friends.map(f => `
+    <div style="display: flex; justify-content: space-between; padding: 8px; background: #f8f9ff; margin-bottom: 5px; border-radius: 8px;">
+      <span>${f}</span>
+      <button onclick="game.removeFriend('${f}')" style="background: #ff6b6b; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
+    </div>
+  `).join('');
+}
+
+function startDailyChallenge() {
+  document.getElementById('daily-modal').classList.remove('hidden');
+  socket.emit('get-daily-challenge');
+  socket.emit('get-daily-leaderboard');
+}
+
+function closeDaily() {
+  document.getElementById('daily-modal').classList.add('hidden');
+}
+
+function playDailyChallenge() {
+  state.isDailyChallenge = true;
+  state.gameMode = 'daily';
+  state.score = 0;
+  state.countriesGuessed = 0;
+  state.currentRound = 1;
+  
+  // Pro daily challenge použijeme speciální flow
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('game-panel').classList.remove('hidden');
+  document.getElementById('single-stats').classList.remove('hidden');
+  document.getElementById('mp-scoreboard').classList.add('hidden');
+  document.getElementById('round-display').classList.remove('hidden');
+  document.getElementById('timer').parentElement.classList.add('hidden'); // Bez časovače
+  
+  // Načteme denní země ze serveru
+  socket.emit('get-daily-challenge');
+  socket.once('daily-challenge-data', (data) => {
+    // Uložíme si země pro local použití (v reálu bychom je měli fetchovat nebo mít v datech)
+    startDailyRound();
+  });
+}
+
+function submitDailyResult() {
+  if(!state.isDailyChallenge) return;
+  const name = prompt(t('enterName'), '') || (currentLang === 'cs' ? 'Hráč' : 'Player');
+  socket.emit('submit-daily-result', {
+    name: name,
+    score: state.score,
+    countries: state.countriesGuessed,
+    userId: localStorage.getItem('geoguessr_user_id') || socket.id
+  });
+}
+
+function addBots() {
+  const count = parseInt(document.getElementById('bot-count').value);
+  const difficulty = document.getElementById('bot-difficulty').value;
+  socket.emit('add-bots', {count, difficulty});
+  showToast(currentLang === 'cs' ? `Přidáno ${count} botů` : `Added ${count} bots`);
+}
+
+// Uprav backToMenu aby čistil daily flag:
+function backToMenu() {
+  state.isDailyChallenge = false;
+  // ... existující kód ...
+}
+
+// Přidej listenery v DOMContentLoaded:
+socket.on('friends-status', (friends) => {
+  const list = document.getElementById('friends-list');
+  if(!friends || friends.length === 0) {
+    list.innerHTML = `<div class="no-scores">${t('noFriendsOnline')}</div>`;
+    return;
+  }
+  list.innerHTML = friends.map(f => {
+    const statusColor = f.status === 'playing' ? '#e74c3c' : '#2ecc71';
+    const statusText = f.status === 'playing' ? (currentLang === 'cs' ? 'Hraje' : 'Playing') : (currentLang === 'cs' ? 'Online' : 'Online');
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9ff; margin-bottom: 5px; border-radius: 8px; border-left: 4px solid ${statusColor};">
+        <div>
+          <div style="font-weight: 600;">${escapeHtml(f.name)}</div>
+          <div style="font-size: 12px; color: ${statusColor};">${statusText}</div>
+        </div>
+        ${f.status === 'menu' ? `<button onclick="game.inviteFriend('${f.id}')" style="background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 15px; cursor: pointer; font-size: 13px;">${t('invite')}</button>` : ''}
+      </div>
+    `;
+  }).join('');
+});
+
+socket.on('daily-leaderboard', (data) => {
+  const container = document.getElementById('daily-leaderboard');
+  if(!data || data.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: #999; padding: 20px;">${t('noScoresYet')}</div>`;
+    return;
+  }
+  container.innerHTML = `
+    <div style="background: #f8f9ff; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+      <h3 style="margin-bottom: 10px; color: #333;">${t('todayLeaderboard')}</h3>
+      ${data.slice(0, 10).map((entry, i) => `
+        <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; ${entry.id === socket.id ? 'background: rgba(102,126,234,0.1); border-radius: 6px;' : ''}">
+          <span><strong>${i+1}.</strong> ${escapeHtml(entry.name)}</span>
+          <span style="font-weight: bold; color: #667eea;">${entry.score} ${t('points')}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+});
+
+// Uprav endSingleGame pro daily:
+function endSingleGame() {
+  clearInterval(state.timerInterval);
+  state.finished = true;
+  setInputEnabled(false);
+  
+  if(state.isDailyChallenge) {
+    submitDailyResult();
+    document.getElementById('winners-title').textContent = t('dailyComplete');
+    document.getElementById('winners-subtitle').textContent = `${t('guessed')} ${state.countriesGuessed} ${t('countries')}, ${t('score')}: ${state.score}`;
+  } else {
+    // ... existující kód pro single player ...
+  }
+  
+  document.getElementById('game-over').classList.add('show');
+}
 
     const config = {
         maxAttempts: 5, 
