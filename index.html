@@ -369,7 +369,160 @@
         color: white;
     }
     
-    /* ZBÝVAJÍCÍ POKUSY - NOVÉ */
+    /* DAILY CHALLENGE STYLES */
+    .daily-container {
+        background: rgba(255,255,255,0.98);
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        max-width: 600px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    
+    .daily-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .daily-icon {
+        font-size: 60px;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .daily-title {
+        font-size: 32px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+    }
+    
+    .daily-rules {
+        background: #f8f9ff;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        text-align: left;
+    }
+    
+    .daily-rules h3 {
+        color: #667eea;
+        margin-bottom: 15px;
+        font-size: 18px;
+    }
+    
+    .daily-rules ul {
+        list-style: none;
+        padding: 0;
+        color: #555;
+        line-height: 2;
+    }
+    
+    .daily-rules li {
+        padding-left: 25px;
+        position: relative;
+    }
+    
+    .daily-rules li:before {
+        content: "🎯";
+        position: absolute;
+        left: 0;
+    }
+    
+    .countdown-timer {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 50px;
+        font-size: 18px;
+        font-weight: 600;
+        display: inline-block;
+        margin: 20px 0;
+    }
+    
+    .daily-leaderboard {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 20px;
+    }
+    
+    .daily-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        margin-bottom: 8px;
+        background: #f8f9ff;
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+    
+    .daily-row:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .daily-rank {
+        width: 40px;
+        font-size: 24px;
+        font-weight: bold;
+        color: #667eea;
+        text-align: center;
+    }
+    
+    .daily-rank.top1 { color: #ffd700; }
+    .daily-rank.top2 { color: #c0c0c0; }
+    .daily-rank.top3 { color: #cd7f32; }
+    
+    .daily-name {
+        flex: 1;
+        font-weight: 600;
+        color: #333;
+        text-align: left;
+        padding: 0 15px;
+    }
+    
+    .daily-stats {
+        text-align: right;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .daily-count {
+        font-size: 20px;
+        font-weight: bold;
+        color: #667eea;
+        margin-right: 10px;
+    }
+    
+    .played-today {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        color: #856404;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px 0;
+        font-weight: 600;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 10px;
+        background: #e0e0e0;
+        border-radius: 5px;
+        overflow: hidden;
+        margin: 15px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+    }
+    
+    /* ZBÝVAJÍCÍ POKUSY */
     .attempts-indicator {
         background: #fff3cd;
         border: 2px solid #ffc107;
@@ -576,6 +729,7 @@
     .menu-btn.join { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     .menu-btn.start-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; animation: pulse 2s infinite; }
     .menu-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .menu-btn.daily { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
     
@@ -613,6 +767,7 @@
     .round-badge-container { margin-bottom: 15px; }
     .round-badge { background: #667eea; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 18px; display: inline-block; }
     .timer-badge { background: #e74c3c; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 24px; display: inline-block; font-family: monospace; }
+    .timer-badge.daily { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     
     .input-wrapper { position: relative; max-width: 600px; margin: 0 auto 15px; width: 100%; }
     .input-group { display: flex; gap: 10px; position: relative; }
@@ -708,6 +863,11 @@
         .settings-card h2 { font-size: 24px; }
         .setting-item { flex-direction: column; gap: 15px; text-align: center; }
         .setting-label { justify-content: center; }
+        
+        /* Daily mobile */
+        .daily-container { padding: 25px 20px; margin: 0 10px; }
+        .daily-title { font-size: 24px; }
+        .daily-icon { font-size: 40px; }
     }
     
     @media (max-width: 480px) {
@@ -726,6 +886,11 @@
         .stat-card { flex: 1 0 100%; width: 100%; max-width: 250px; }
         .settings-grid { flex-direction: column; align-items: center; }
         .settings-card { width: 100%; }
+        
+        .daily-rank { font-size: 18px; width: 30px; }
+        .daily-name { font-size: 14px; padding: 0 10px; }
+        .daily-stats { font-size: 12px; }
+        .daily-count { font-size: 16px; }
     }
     
     @media (max-width: 768px) and (orientation: landscape) {
@@ -914,6 +1079,25 @@
     </div>
 </div>
 
+<!-- SEKCE DAILY CHALLENGE -->
+<div id="section-daily" class="full-width-section content-section hidden">
+    <div class="full-width-content">
+        <div class="daily-container">
+            <div class="daily-header">
+                <span class="daily-icon">📅</span>
+                <h1 class="daily-title" data-i18n="dailyTitle">Denní výzva</h1>
+                <p class="subtitle" style="margin-bottom: 0;" data-i18n="dailyDesc">20 zemí, 3 minuty. Můžeš hrát jen jednou denně!</p>
+            </div>
+            
+            <div id="daily-content">
+                <!-- Dynamicky naplněno JS -->
+            </div>
+        </div>
+        
+        <button onclick="game.showSection(event, 'play')" class="cta-button-wide" style="margin-top: 30px;" data-i18n="backToMenu">🏠 Zpět do menu</button>
+    </div>
+</div>
+
 <div id="game-container">
     <div id="menu" class="controls content-section">
         <h1>🌍 GeoScale</h1>
@@ -921,21 +1105,26 @@
         
         <div class="menu-grid">
             <div class="menu-section highscore-section">
-                <h2><span>🏆</span> <span data-i18n="bestScores">Nejlepší skóre</span></h2>
+                <h2 style="color: white;"><span>🏆</span> <span data-i18n="bestScores">Nejlepší skóre</span></h2>
                 <div class="highscore-list" id="highscore-list">
                     <div class="no-scores" data-i18n="noScoresSingle">Zatím žádné skóre. Zahraj si singleplayer!</div>
                 </div>
                 <button class="clear-scores" onclick="game.clearStats()" id="clear-scores-btn" style="display:none;" data-i18n="clearHistory">Smazat historii</button>
             </div>
             
-            <div class="menu-section" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-                <h2 style="color: white;"><span>🚀</span> <span data-i18n="quickStart">Rychlý start</span></h2>
+            <div class="menu-section" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h2 style="color: white;"><span>👤</span> <span data-i18n="quickStart">Rychlý start</span></h2>
                 <p style="margin-bottom: 15px; line-height: 1.5;" data-i18n="quickStartDesc">Vyber si rychle herní režim a začni hrát ihned.</p>
-                <button onclick="game.startSingle()" class="menu-btn single" style="margin-bottom: 10px; background: white; color: #667eea;" data-i18n="singlePlayerBtn">👤 Single Player (5 min)</button>
+                <button onclick="game.startSingle()" class="menu-btn single" style="margin-bottom: 10px; background: white; color: #11998e;" data-i18n="singlePlayerBtn">Single Player (5 min)</button>
             </div>
         </div>
         
         <div class="menu" style="margin-top: 20px;">
+            <!-- DAILY CHALLENGE BUTTON -->
+            <button onclick="game.showDaily()" class="menu-btn daily" style="margin-bottom: 15px;">
+                📅 <span data-i18n="dailyChallengeBtn">Denní výzva</span>
+            </button>
+            
             <div class="mp-section">
                 <p style="font-size: 18px; margin-bottom: 10px; font-weight: 600;" data-i18n="multiplayer">👥 Multiplayer</p>
                 
@@ -1022,7 +1211,6 @@
         <div class="controls" style="max-height: 50vh;">
             <div id="mp-scoreboard" class="multiplayer-scoreboard hidden"></div>
             
-            <!-- ZBÝVAJÍCÍ POKUSY - NOVÉ -->
             <div id="mp-attempts-left" class="attempts-indicator hidden"></div>
             
             <div id="single-stats" class="hidden" style="margin-bottom: 10px;">
@@ -1031,6 +1219,17 @@
                 </div>
                 <div style="font-size: 16px; font-weight: bold; color: #667eea; margin-top: 5px;">
                     🏆 <span id="score">0</span> <span data-i18n="points">bodů</span> | 🎯 <span id="streak">0</span> <span data-i18n="streakLabel">série</span> | 🌍 <span id="countries-count">0</span> <span data-i18n="countriesLabel">zemí</span>
+                </div>
+            </div>
+            
+            <!-- DAILY STATS -->
+            <div id="daily-stats" class="hidden" style="margin-bottom: 10px;">
+                <div class="round-badge-container" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <div class="timer-badge daily" id="daily-timer">03:00</div>
+                    <div class="round-badge" id="daily-progress">1/20</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="daily-progress-bar" style="width: 5%;"></div>
                 </div>
             </div>
             
@@ -1056,7 +1255,6 @@
 const game = (function() {
     'use strict';
     
-    // Databáze překladů zemí (CS -> EN mapa pro získání anglických názvů)
     const countryTranslations = {
         "cs": {
             "Czech Republic": "Česká republika",
@@ -1107,52 +1305,38 @@ const game = (function() {
         }
     };
 
-    // Funkce pro získání anglického názvu země z českého
     function getEnglishName(czName) {
         if (!czName) return '';
-        
-        // Hledáme v překladech (hodnota = český název, klíč = anglický)
         for (let [eng, cz] of Object.entries(countryTranslations.cs)) {
             if (cz === czName) return eng;
         }
-        
-        // Fallback: vezmeme první alternativu z dat a capitalizujeme ji
         const country = countries.find(c => c[0] === czName);
         if (country && country[3] && country[3].length > 0) {
             const alt = country[3][0];
-            // Capitalizace prvního písmene každého slova
             return alt.split(' ')
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                 .join(' ');
         }
-        
-        return czName; // Fallback na český název kdyby se něco pokazilo
+        return czName;
     }
 
-    // Funkce pro zobrazení názvu země podle aktuálního jazyka
     function getCountryDisplayName(countryData) {
         if (!countryData) return '';
         if (currentLang === 'en') {
             return getEnglishName(countryData[0]);
         }
-        return countryData[0]; // Český název je na indexu 0
+        return countryData[0];
     }
 
-    // Funkce pro překlad českého názvu ze serveru na aktuální jazyk
     function translateCountryName(czName) {
         if (currentLang === 'cs') return czName;
-        
-        // Najdeme zemi v datech podle českého názvu
         const country = countries.find(c => c[0] === czName);
         if (country) {
             return getCountryDisplayName(country);
         }
-        
-        // Fallback: pokusíme se najít překlad přímo
         return getEnglishName(czName);
     }
 
-    // Systém překladů UI
     const translations = {
         cs: {
             navInfo: 'Informace',
@@ -1204,6 +1388,7 @@ const game = (function() {
             off: 'Vypnuto',
             language: 'Jazyk',
             backToGame: '🎮 Zpět do hry',
+            backToMenu: '🏠 Zpět do menu',
             gameSubtitle: 'Poznáš zemi podle mapy?',
             bestScores: 'Nejlepší skóre',
             noScoresSingle: 'Zatím žádné skóre. Zahraj si singleplayer!',
@@ -1211,6 +1396,7 @@ const game = (function() {
             quickStart: 'Rychlý start',
             quickStartDesc: 'Vyber si rychle herní režim a začni hrát ihned.',
             singlePlayerBtn: '👤 Single Player (5 min)',
+            dailyChallengeBtn: '📅 Denní výzva',
             multiplayer: '👥 Multiplayer',
             players: 'hráči',
             playersGen: 'hráčů',
@@ -1275,7 +1461,25 @@ const game = (function() {
             enterName: 'Zadej svoje jméno pro tabulku nejlepších:',
             attempts: 'Pokus',
             attemptsLeft: 'Zbývá pokusů',
-            detailLevel: ["Velmi detailní", "Detailní", "Město", "Region", "Kontinent"]
+            detailLevel: ["Velmi detailní", "Detailní", "Město", "Region", "Kontinent"],
+            // Daily Challenge
+            dailyTitle: 'Denní výzva',
+            dailyDesc: '20 zemí, 3 minuty. Můžeš hrát jen jednou denně!',
+            dailyRules: 'Pravidla:',
+            dailyRule1: '🎯 Uhádni co nejvíce zemí za 3 minuty',
+            dailyRule2: '🌍 Všichni hráči mají stejné země ve stejném pořadí',
+            dailyRule3: '🏆 Pořadí určuje počet uhodnutých zemí, pak čas',
+            dailyRule4: '📅 Nová výzva každý den v 00:00',
+            alreadyPlayed: 'Už jsi dnes hrál!',
+            comeBackTomorrow: 'Přijď zítra znovu. Nová výzva začíná za:',
+            startDaily: 'Spustit výzvu',
+            dailyCompleted: 'Výzva dokončena!',
+            guessedCountries: 'Uhodnuto zemí',
+            timeRemaining: 'Zbývající čas',
+            yourRank: 'Tvoje pořadí',
+            of: 'z',
+            dailyLeaderboard: 'Denní žebříček',
+            dailyNextIn: 'Nová výzva za'
         },
         en: {
             navInfo: 'Information',
@@ -1327,6 +1531,7 @@ const game = (function() {
             off: 'Off',
             language: 'Language',
             backToGame: '🎮 Back to Game',
+            backToMenu: '🏠 Back to Menu',
             gameSubtitle: 'Can you guess the country by its map?',
             bestScores: 'Best Scores',
             noScoresSingle: 'No scores yet. Play singleplayer!',
@@ -1334,6 +1539,7 @@ const game = (function() {
             quickStart: 'Quick Start',
             quickStartDesc: 'Quickly choose game mode and start playing.',
             singlePlayerBtn: '👤 Single Player (5 min)',
+            dailyChallengeBtn: '📅 Daily Challenge',
             multiplayer: '👥 Multiplayer',
             players: 'players',
             playersGen: 'players',
@@ -1398,7 +1604,25 @@ const game = (function() {
             enterName: 'Enter your name for the leaderboard:',
             attempts: 'Attempt',
             attemptsLeft: 'Attempts left',
-            detailLevel: ["Very detailed", "Detailed", "City", "Region", "Continent"]
+            detailLevel: ["Very detailed", "Detailed", "City", "Region", "Continent"],
+            // Daily Challenge
+            dailyTitle: 'Daily Challenge',
+            dailyDesc: '20 countries, 3 minutes. Play once per day!',
+            dailyRules: 'Rules:',
+            dailyRule1: '🎯 Guess as many countries as possible in 3 minutes',
+            dailyRule2: '🌍 Everyone gets the same countries in same order',
+            dailyRule3: '🏆 Ranked by count first, then by time',
+            dailyRule4: '📅 New challenge every day at 00:00',
+            alreadyPlayed: 'You already played today!',
+            comeBackTomorrow: 'Come back tomorrow. New challenge starts in:',
+            startDaily: 'Start Challenge',
+            dailyCompleted: 'Challenge Complete!',
+            guessedCountries: 'Countries guessed',
+            timeRemaining: 'Time remaining',
+            yourRank: 'Your rank',
+            of: 'of',
+            dailyLeaderboard: 'Daily Leaderboard',
+            dailyNextIn: 'Next challenge in'
         }
     };
 
@@ -1413,7 +1637,6 @@ const game = (function() {
         if (lang) currentLang = lang;
         localStorage.setItem('geoguessr_language', currentLang);
         
-        // Aktualizace všech prvků s data-i18n
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if (translations[currentLang][key]) {
@@ -1421,7 +1644,6 @@ const game = (function() {
             }
         });
         
-        // Aktualizace placeholderů
         document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
             const key = el.getAttribute('data-i18n-placeholder');
             if (translations[currentLang][key]) {
@@ -1429,7 +1651,6 @@ const game = (function() {
             }
         });
         
-        // Aktualizace select options (kontinenty)
         const continentSelect = document.getElementById('continent-select');
         if (continentSelect) {
             const options = continentSelect.querySelectorAll('option');
@@ -1441,21 +1662,20 @@ const game = (function() {
             });
         }
         
-        // Aktualizace jazykových tlačítek
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         const activeBtn = document.getElementById(`lang-${currentLang}`);
         if (activeBtn) activeBtn.classList.add('active');
         
-        // Aktualizace zvukového tlačítka
         updateSoundButton();
-        
-        // Aktualizace statistik
         updateStatsDisplay();
-        
-        // Aktualizace HTML lang atributu
         document.documentElement.lang = currentLang;
+        
+        // Refresh daily section if visible
+        if (!document.getElementById('section-daily').classList.contains('hidden')) {
+            loadDailyStatus();
+        }
     }
 
     function updateSoundButton() {
@@ -1740,16 +1960,24 @@ const game = (function() {
         timeLeft: 300,
         timerInterval: null,
         countriesGuessed: 0,
-        rematchVoted: false
+        rematchVoted: false,
+        // Daily challenge state
+        dailyCountries: [],
+        dailyIndex: 0,
+        dailyStartTime: null,
+        dailyTimeLeft: 180,
+        dailyCountriesGuessed: 0,
+        dailyPlayed: false,
+        dailyLeaderboard: []
     };
 
     const config = {
         maxAttempts: 5, 
         zoomLevels: [16, 13, 10, 6, 3],
-        singlePlayerTime: 300
+        singlePlayerTime: 300,
+        dailyTime: 180 // 3 minutes
     };
 
-    // ZBÝVAJÍCÍ POKUSY - funkce
     function updateAttemptsDisplay() {
         const el = document.getElementById('mp-attempts-left');
         if (!el) return;
@@ -1763,7 +1991,6 @@ const game = (function() {
         el.classList.remove('hidden');
         el.textContent = `${t('attemptsLeft')}: ${left}`;
         
-        // Styling podle počtu zbývajících pokusů
         el.classList.remove('warning', 'success');
         if (left <= 2) {
             el.classList.add('warning');
@@ -1773,7 +2000,7 @@ const game = (function() {
     }
 
     window.addEventListener('beforeunload', (e) => {
-        if (state.gameMode === 'mp' && !state.finished && state.currentRound < state.totalRounds) {
+        if ((state.gameMode === 'mp' || state.gameMode === 'daily') && !state.finished && state.currentRound < state.totalRounds) {
             e.preventDefault();
             e.returnValue = t('gameInProgress');
         }
@@ -1787,6 +2014,287 @@ const game = (function() {
         }, { passive: false });
     }
 
+    // DAILY CHALLENGE SOCKET EVENTS
+    socket.on('daily-status', (data) => {
+        state.dailyPlayed = data.played;
+        state.dailyLeaderboard = data.leaderboard || [];
+        renderDailySection(data);
+    });
+
+    socket.on('daily-started', (data) => {
+        startDailyChallenge(data.countries, data.timeLimit);
+    });
+
+    socket.on('daily-error', (msg) => {
+        if (msg === 'already_played') {
+            showToast(t('alreadyPlayed'));
+            loadDailyStatus(); // Refresh UI
+        }
+    });
+
+    socket.on('daily-submitted', (data) => {
+        state.dailyRank = data.rank;
+        state.dailyTotal = data.total;
+        showDailyComplete();
+    });
+
+    socket.on('daily-leaderboard-update', (leaderboard) => {
+        state.dailyLeaderboard = leaderboard;
+        if (!document.getElementById('section-daily').classList.contains('hidden')) {
+            renderDailyLeaderboard(leaderboard);
+        }
+    });
+
+    // Daily Challenge Functions
+    function showDaily() {
+        game.showSection(null, 'daily');
+        loadDailyStatus();
+    }
+
+    function loadDailyStatus() {
+        socket.emit('check-daily');
+    }
+
+    function renderDailySection(data) {
+        const container = document.getElementById('daily-content');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Rules section
+        const rulesDiv = createEl('div', 'daily-rules');
+        rulesDiv.innerHTML = `
+            <h3>${t('dailyRules')}</h3>
+            <ul>
+                <li>${t('dailyRule1')}</li>
+                <li>${t('dailyRule2')}</li>
+                <li>${t('dailyRule3')}</li>
+                <li>${t('dailyRule4')}</li>
+            </ul>
+        `;
+        container.appendChild(rulesDiv);
+        
+        if (data.played) {
+            // Already played today
+            const playedDiv = createEl('div', 'played-today');
+            playedDiv.innerHTML = `
+                <div style="font-size: 24px; margin-bottom: 10px;">✅</div>
+                <div>${t('alreadyPlayed')}</div>
+                <div style="margin-top: 15px; font-size: 14px;">
+                    ${t('comeBackTomorrow')}<br>
+                    <div class="countdown-timer" id="daily-countdown">...</div>
+                </div>
+            `;
+            container.appendChild(playedDiv);
+            startCountdown(data.nextChallenge);
+        } else {
+            // Can play
+            const startBtn = createEl('button', 'menu-btn daily');
+            startBtn.style.marginTop = '20px';
+            startBtn.textContent = `▶️ ${t('startDaily')}`;
+            startBtn.onclick = () => {
+                const name = prompt(t('enterName'), '') || (currentLang === 'cs' ? 'Hráč' : 'Player');
+                state.dailyName = name.slice(0, 20);
+                socket.emit('start-daily');
+            };
+            container.appendChild(startBtn);
+        }
+        
+        // Leaderboard
+        const lbTitle = createEl('h3', '', `${t('dailyLeaderboard')} (${data.totalPlayers || 0} ${currentLang === 'cs' ? 'hráčů' : 'players'})`);
+        lbTitle.style.marginTop = '30px';
+        lbTitle.style.color = '#667eea';
+        container.appendChild(lbTitle);
+        
+        renderDailyLeaderboard(data.leaderboard, container);
+    }
+
+    function renderDailyLeaderboard(leaderboard, container = null) {
+        const target = container || document.getElementById('daily-content');
+        if (!target) return;
+        
+        // Remove existing leaderboard if updating
+        const existing = target.querySelector('.daily-leaderboard');
+        if (existing) existing.remove();
+        
+        const lbDiv = createEl('div', 'daily-leaderboard');
+        
+        if (!leaderboard || leaderboard.length === 0) {
+            lbDiv.innerHTML = `<div class="no-scores" style="text-align: center; padding: 20px;">${t('noScoresYet')}</div>`;
+        } else {
+            leaderboard.forEach((entry, index) => {
+                const row = createEl('div', 'daily-row');
+                const rankClass = index === 0 ? 'daily-rank top1' : index === 1 ? 'daily-rank top2' : index === 2 ? 'daily-rank top3' : 'daily-rank';
+                const rank = createEl('div', rankClass, `${index + 1}.`);
+                const name = createEl('div', 'daily-name', escapeHtml(entry.name));
+                const stats = createEl('div', 'daily-stats');
+                
+                const timeStr = `${Math.floor(entry.time / 60)}:${String(entry.time % 60).padStart(2, '0')}`;
+                stats.innerHTML = `<span class="daily-count">${entry.count}/20</span><br><small>${timeStr}</small>`;
+                
+                row.appendChild(rank);
+                row.appendChild(name);
+                row.appendChild(stats);
+                lbDiv.appendChild(row);
+            });
+        }
+        
+        target.appendChild(lbDiv);
+    }
+
+    function startCountdown(ms) {
+        const update = () => {
+            const el = document.getElementById('daily-countdown');
+            if (!el) return;
+            
+            let remaining = ms;
+            const interval = setInterval(() => {
+                remaining -= 1000;
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    loadDailyStatus(); // Refresh at midnight
+                    return;
+                }
+                
+                const hours = Math.floor(remaining / 3600000);
+                const mins = Math.floor((remaining % 3600000) / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                el.textContent = `${hours}h ${mins}m ${secs}s`;
+            }, 1000);
+        };
+        update();
+    }
+
+    function startDailyChallenge(countriesList, timeLimit) {
+        state.gameMode = 'daily';
+        state.dailyCountries = countriesList;
+        state.dailyIndex = 0;
+        state.dailyCountriesGuessed = 0;
+        state.dailyTimeLeft = timeLimit || 180;
+        state.finished = false;
+        state.dailyStartTime = Date.now();
+        
+        // Hide menu, show game
+        document.getElementById('section-daily').classList.add('hidden');
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('navbar').classList.add('hidden');
+        document.getElementById('game-panel').classList.remove('hidden');
+        document.getElementById('daily-stats').classList.remove('hidden');
+        document.getElementById('single-stats').classList.add('hidden');
+        document.getElementById('mp-scoreboard').classList.add('hidden');
+        document.getElementById('round-display').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('show');
+        
+        updateDailyDisplay();
+        startDailyTimer();
+        nextDailyCountry();
+        
+        if (isMobile && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(e => {});
+        }
+    }
+
+    function startDailyTimer() {
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        updateDailyTimerDisplay();
+        state.timerInterval = setInterval(() => {
+            state.dailyTimeLeft--;
+            updateDailyTimerDisplay();
+            if (state.dailyTimeLeft <= 0) {
+                endDailyChallenge();
+            }
+        }, 1000);
+    }
+
+    function updateDailyTimerDisplay() {
+        const minutes = Math.floor(state.dailyTimeLeft / 60);
+        const seconds = state.dailyTimeLeft % 60;
+        const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('daily-timer').textContent = display;
+        
+        if (state.dailyTimeLeft < 30) {
+            document.getElementById('daily-timer').style.background = '#e74c3c';
+        }
+    }
+
+    function updateDailyDisplay() {
+        document.getElementById('daily-progress').textContent = `${state.dailyIndex + 1}/20`;
+        const pct = ((state.dailyIndex) / 20) * 100;
+        document.getElementById('daily-progress-bar').style.width = `${pct}%`;
+    }
+
+    function nextDailyCountry() {
+        if (state.dailyIndex >= state.dailyCountries.length || state.dailyTimeLeft <= 0) {
+            endDailyChallenge();
+            return;
+        }
+        
+        state.currentCountry = state.dailyCountries[state.dailyIndex];
+        state.attempts = 0;
+        initMap();
+        
+        setTimeout(() => {
+            setInputEnabled(true);
+            updateDailyHint();
+        }, 1000);
+    }
+
+    function updateDailyHint() {
+        const level = t('detailLevel')[state.attempts];
+        document.getElementById('hint').textContent = `${t('attempts')} ${state.attempts + 1}/${config.maxAttempts} | ${level}`;
+    }
+
+    function endDailyChallenge() {
+        if (state.finished) return;
+        state.finished = true;
+        
+        clearInterval(state.timerInterval);
+        setInputEnabled(false);
+        
+        const timeTaken = Math.floor((Date.now() - state.dailyStartTime) / 1000);
+        const actualTime = Math.min(timeTaken, config.dailyTime);
+        
+        socket.emit('submit-daily', {
+            name: state.dailyName || (currentLang === 'cs' ? 'Anonym' : 'Anonymous'),
+            count: state.dailyCountriesGuessed,
+            timeSeconds: actualTime
+        });
+    }
+
+    function showDailyComplete() {
+        if (isMobile && document.fullscreenElement) {
+            document.exitFullscreen().catch(e => {});
+        }
+        
+        document.getElementById('daily-stats').classList.add('hidden');
+        
+        const timeTaken = Math.floor((Date.now() - state.dailyStartTime) / 1000);
+        const minutes = Math.floor(timeTaken / 60);
+        const seconds = timeTaken % 60;
+        const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        document.getElementById('winners-title').textContent = t('dailyCompleted');
+        document.getElementById('winners-subtitle').innerHTML = `
+            ${t('guessedCountries')}: <strong>${state.dailyCountriesGuessed}/20</strong><br>
+            ${t('timeRemaining')}: ${timeStr}
+        `;
+        
+        const rankText = state.dailyRank ? `<br>${t('yourRank')}: <strong>${state.dailyRank}. ${t('of')} ${state.dailyTotal}</strong>` : '';
+        
+        document.getElementById('final-scores').innerHTML = `
+            <div class="score-item you" style="justify-content: center; flex-direction: column; text-align: center; gap: 15px; padding: 30px;">
+                <div style="font-size: 48px; font-weight: bold; color: #667eea;">${state.dailyCountriesGuessed}<span style="font-size: 24px; color: #999;">/20</span></div>
+                <div style="color: #666; font-size: 18px;">${timeStr}</div>
+                ${rankText}
+            </div>
+        `;
+        
+        document.getElementById('rematch-btn').style.display = 'none';
+        document.getElementById('game-over').classList.add('show');
+    }
+
+    // EXISTUJÍCÍ MULTIPLAYER EVENTS
     socket.on('room-created', (data) => {
         state.roomCode = data.code;
         state.isHost = true;
@@ -1883,7 +2391,7 @@ const game = (function() {
         setTimeout(() => {
             setInputEnabled(true);
             updateHint();
-            updateAttemptsDisplay(); // Reset zobrazení pokusů
+            updateAttemptsDisplay();
         }, 1000);
     });
 
@@ -1893,7 +2401,6 @@ const game = (function() {
         const hint = document.getElementById('hint');
         hint.innerHTML = '';
         
-        // Použijeme přeložený název země ze serveru (přichází česky)
         const countryName = translateCountryName(data.countryName);
         
         if (data.winner) {
@@ -1906,7 +2413,7 @@ const game = (function() {
         
         state.players = data.scores.map(s => ({ id: s.id, name: s.name, score: s.score }));
         updateScoreboard();
-        document.getElementById('mp-attempts-left').classList.add('hidden'); // Skrýt počítadlo po kole
+        document.getElementById('mp-attempts-left').classList.add('hidden');
     });
 
     socket.on('player-out', (data) => {
@@ -2159,6 +2666,7 @@ const game = (function() {
         document.getElementById('menu').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.add('hidden');
+        document.getElementById('daily-stats').classList.add('hidden');
         document.getElementById('mp-scoreboard').classList.remove('hidden');
         document.getElementById('round-display').classList.remove('hidden');
         document.getElementById('game-over').classList.remove('show');
@@ -2192,10 +2700,10 @@ const game = (function() {
         document.getElementById('navbar').classList.add('hidden');
         document.getElementById('game-panel').classList.remove('hidden');
         document.getElementById('single-stats').classList.remove('hidden');
+        document.getElementById('daily-stats').classList.add('hidden');
         document.getElementById('mp-scoreboard').classList.add('hidden');
         document.getElementById('round-display').classList.add('hidden');
         document.getElementById('game-over').classList.remove('show');
-        document.getElementById('mp-attempts-left').classList.add('hidden');
         
         document.getElementById('score').textContent = '0';
         document.getElementById('streak').textContent = '0';
@@ -2275,7 +2783,7 @@ const game = (function() {
         state.lastGuess = Date.now();
         state.guessCooldown = true;
         setTimeout(() => state.guessCooldown = false, 300);
-        if (state.gameMode === 'mp' && state.finished) return;
+        if ((state.gameMode === 'mp' || state.gameMode === 'daily') && state.finished) return;
         if (state.gameMode === 'single' && state.timeLeft <= 0) return;
         const inp = document.getElementById('guessInput');
         const val = inp.value.trim();
@@ -2284,19 +2792,15 @@ const game = (function() {
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
         
-        // Kontrola podle aktuálního jazyka
         let correct = false;
         
         if (currentLang === 'en') {
-            // V angličtině porovnáme s anglickým názvem
             const englishName = getEnglishName(state.currentCountry[0]);
             correct = (valNorm === norm(englishName));
         } else {
-            // V češtině porovnáme s českým názvem
             correct = (valNorm === norm(state.currentCountry[0]));
         }
         
-        // Také zkontrolujeme alternativy (jsou většinou anglické)
         if (!correct && state.currentCountry[3]) {
             correct = state.currentCountry[3].some(a => norm(val) === norm(a));
         }
@@ -2304,11 +2808,31 @@ const game = (function() {
         if (correct) {
             if (state.gameMode === 'mp') {
                 socket.emit('correct-guess');
+            } else if (state.gameMode === 'daily') {
+                handleDailyCorrect();
             } else {
                 handleSingleCorrect();
             }
         } else {
             handleWrong();
+        }
+    }
+
+    function handleDailyCorrect() {
+        state.dailyCountriesGuessed++;
+        state.dailyIndex++;
+        state.attempts = 0;
+        
+        const displayName = getCountryDisplayName(state.currentCountry);
+        document.getElementById('hint').innerHTML = `<span class="success">✓ ${displayName}!</span>`;
+        playSound('success');
+        setInputEnabled(false);
+        updateDailyDisplay();
+        
+        if (state.dailyIndex >= 20) {
+            endDailyChallenge();
+        } else {
+            setTimeout(nextDailyCountry, 1500);
         }
     }
 
@@ -2331,7 +2855,6 @@ const game = (function() {
         playSound('error');
         state.attempts++;
         
-        // Aktualizace zobrazení zbývajících pokusů v MP
         if (state.gameMode === 'mp') {
             updateAttemptsDisplay();
         }
@@ -2348,6 +2871,26 @@ const game = (function() {
                 state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
                 updateHint();
             }
+        } else if (state.gameMode === 'daily') {
+            if (state.attempts >= config.maxAttempts) {
+                // V daily módu po vyčerpání pokusů přejdeme na další zem (nezíská bod)
+                state.dailyIndex++;
+                state.attempts = 0;
+                updateDailyDisplay();
+                
+                const displayName = getCountryDisplayName(state.currentCountry);
+                document.getElementById('hint').innerHTML = `<span class="fail">✗ ${t('itWas')} ${displayName}</span>`;
+                setInputEnabled(false);
+                
+                if (state.dailyIndex >= 20) {
+                    endDailyChallenge();
+                } else {
+                    setTimeout(nextDailyCountry, 2000);
+                }
+            } else {
+                state.map.setView([state.currentCountry[1], state.currentCountry[2]], config.zoomLevels[state.attempts]);
+                updateDailyHint();
+            }
         } else {
             if (state.attempts >= config.maxAttempts) {
                 setInputEnabled(false);
@@ -2362,8 +2905,14 @@ const game = (function() {
     }
 
     function updateHint() {
-        const level = t('detailLevel')[state.attempts];
-        document.getElementById('hint').textContent = `${t('attempts')} ${state.attempts + 1}/${config.maxAttempts} | ${level}`;
+        let levelText;
+        if (state.gameMode === 'daily') {
+            levelText = t('detailLevel')[state.attempts];
+            document.getElementById('hint').textContent = `${t('attempts')} ${state.attempts + 1}/${config.maxAttempts} | ${levelText}`;
+        } else {
+            levelText = t('detailLevel')[state.attempts];
+            document.getElementById('hint').textContent = `${t('attempts')} ${state.attempts + 1}/${config.maxAttempts} | ${levelText}`;
+        }
     }
 
     function rematch() {
@@ -2404,15 +2953,18 @@ const game = (function() {
         const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         const valNorm = norm(val);
         
-        // Filtrování podle aktuálního jazyka
-        const matches = countries.filter(c => {
+        let searchPool = countries;
+        if (state.gameMode === 'daily' && state.dailyCountries.length > 0) {
+            // V daily módu nabízíme všechny země, ne jen zbylé
+            searchPool = countries;
+        }
+        
+        const matches = searchPool.filter(c => {
             if (currentLang === 'en') {
-                // Vyhledáváme v anglických názvech
                 const engName = norm(getEnglishName(c[0]));
                 const alternatives = c[3] || [];
                 return engName.includes(valNorm) || alternatives.some(a => norm(a).includes(valNorm));
             } else {
-                // Vyhledáváme v českých názvech
                 const czName = norm(c[0]);
                 const alternatives = c[3] || [];
                 return czName.includes(valNorm) || alternatives.some(a => norm(a).includes(valNorm));
@@ -2431,7 +2983,6 @@ const game = (function() {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
             
-            // Zobrazíme název v aktuálním jazyku
             const displayName = getCountryDisplayName(c);
             
             const parts = displayName.split(regex);
@@ -2460,6 +3011,7 @@ const game = (function() {
         document.getElementById('section-info').classList.add('hidden');
         document.getElementById('section-results').classList.add('hidden');
         document.getElementById('section-settings').classList.add('hidden');
+        document.getElementById('section-daily').classList.add('hidden');
         document.getElementById('menu').classList.add('hidden');
         document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
         
@@ -2474,6 +3026,9 @@ const game = (function() {
             document.getElementById('section-settings').classList.remove('hidden');
             document.getElementById('nav-settings-link').classList.add('active');
             updateLanguage();
+        } else if (section === 'daily') {
+            document.getElementById('section-daily').classList.remove('hidden');
+            document.getElementById('nav-play-link').classList.remove('active');
         } else if (section === 'play') {
             document.getElementById('menu').classList.remove('hidden');
             document.getElementById('nav-play-link').classList.add('active');
@@ -2556,7 +3111,8 @@ const game = (function() {
         showSection,
         toggleMobileMenu,
         setLanguage,
-        toggleSound
+        toggleSound,
+        showDaily
     };
 })();
 </script>
