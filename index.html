@@ -1120,8 +1120,8 @@
         </div>
         
         <div class="menu" style="margin-top: 20px;">
-            <!-- DAILY CHALLENGE BUTTON -->
-            <button onclick="game.showDaily()" class="menu-btn daily" style="margin-bottom: 15px;">
+            <!-- DAILY CHALLENGE BUTTON - skryje se při vstupu do MP -->
+            <button id="daily-challenge-btn" onclick="game.showDaily()" class="menu-btn daily" style="margin-bottom: 15px;">
                 📅 <span data-i18n="dailyChallengeBtn">Denní výzva</span>
             </button>
             
@@ -2305,6 +2305,11 @@ const game = (function() {
         document.querySelector('.menu-grid').classList.add('hidden');
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
+        
+        // SKRÝT DAILY CHALLENGE TLAČÍTKO
+        const dailyBtn = document.getElementById('daily-challenge-btn');
+        if (dailyBtn) dailyBtn.style.display = 'none';
+        
         updateLobbyPlayerList([{ id: socket.id, name: t('host'), isHost: true }], state.maxPlayers);
         
         if (isMobile && navigator.clipboard) {
@@ -2342,6 +2347,11 @@ const game = (function() {
         state.myId = data.yourId;
         document.querySelector('.menu-grid').classList.add('hidden');
         document.querySelector('.menu > .mp-section').classList.add('hidden');
+        
+        // SKRÝT DAILY CHALLENGE TLAČÍTKO
+        const dailyBtn = document.getElementById('daily-challenge-btn');
+        if (dailyBtn) dailyBtn.style.display = 'none';
+        
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('guest-lobby').classList.remove('hidden');
         document.getElementById('guest-chat-input').disabled = false;
@@ -2591,6 +2601,11 @@ const game = (function() {
         document.getElementById('host-panel').classList.add('hidden');
         document.querySelector('.menu-grid').classList.remove('hidden');
         document.querySelector('.menu > .mp-section').classList.remove('hidden');
+        
+        // ZOBRAZIT DAILY CHALLENGE TLAČÍTKO ZPĚT
+        const dailyBtn = document.getElementById('daily-challenge-btn');
+        if (dailyBtn) dailyBtn.style.display = 'block';
+        
         socket.emit('leave-room');
     }
 
@@ -2602,12 +2617,22 @@ const game = (function() {
         document.getElementById('join-error').textContent = '';
         document.querySelector('.menu-grid').classList.remove('hidden');
         document.querySelector('.menu > .mp-section').classList.remove('hidden');
+        
+        // ZOBRAZIT DAILY CHALLENGE TLAČÍTKO ZPĚT
+        const dailyBtn = document.getElementById('daily-challenge-btn');
+        if (dailyBtn) dailyBtn.style.display = 'block';
+        
         socket.emit('leave-room');
     }
 
     function showJoin() {
         document.querySelector('.menu-grid').classList.add('hidden');
         document.querySelector('.menu > .mp-section').classList.add('hidden');
+        
+        // SKRÝT DAILY CHALLENGE TLAČÍTKO
+        const dailyBtn = document.getElementById('daily-challenge-btn');
+        if (dailyBtn) dailyBtn.style.display = 'none';
+        
         document.getElementById('join-panel').classList.remove('hidden');
         document.getElementById('join-code').focus();
     }
@@ -3036,6 +3061,10 @@ const game = (function() {
             document.getElementById('join-panel').classList.add('hidden');
             document.querySelector('.menu-grid').classList.remove('hidden');
             document.querySelector('.menu > .mp-section').classList.remove('hidden');
+            
+            // ZOBRAZIT DAILY CHALLENGE TLAČÍTKO
+            const dailyBtn = document.getElementById('daily-challenge-btn');
+            if (dailyBtn) dailyBtn.style.display = 'block';
         }
         document.getElementById('nav-links').classList.remove('active');
         window.scrollTo(0, 0);
@@ -3060,6 +3089,11 @@ const game = (function() {
             showSection(null, 'play');
             document.querySelector('.menu-grid').classList.add('hidden');
             document.querySelector('.menu > .mp-section').classList.add('hidden');
+            
+            // SKRÝT DAILY CHALLENGE TLAČÍTKO
+            const dailyBtn = document.getElementById('daily-challenge-btn');
+            if (dailyBtn) dailyBtn.style.display = 'none';
+            
             document.getElementById('join-panel').classList.remove('hidden');
             document.getElementById('join-code').value = room.slice(0, 10);
         }
