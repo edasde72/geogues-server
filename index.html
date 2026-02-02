@@ -737,7 +737,7 @@
     .select-group { display: flex; gap: 10px; margin-bottom: 10px; }
     .continent-select, .player-count-select { padding: 12px; border-radius: 10px; border: 2px solid #667eea; font-size: 16px; flex: 1; background: white; }
     
-    .lobby-info { background: #667eea; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .lobby-info { background: #667eea; color: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
     .lobby-info.waiting { background: #f59e0b; color: #000; }
     .lobby-info.ready { background: #10b981; }
     .code-display { font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #667eea; text-align: center; padding: 20px; background: #f0f0f0; border-radius: 12px; margin: 10px 0; border: 3px dashed #667eea; user-select: all; cursor: pointer; font-family: monospace; }
@@ -1137,12 +1137,25 @@
                         <option value="africa" data-i18n="optAfrica">🌍 Afrika (54 zemí)</option>
                         <option value="oceania" data-i18n="optOceania">🌏 Oceánie (14 zemí)</option>
                     </select>
+                </div>
+                
+                <div class="select-group" style="margin-bottom: 10px;">
                     <select id="max-players" class="player-count-select">
                         <option value="2">2 <span data-i18n="players">hráči</span></option>
                         <option value="3">3 <span data-i18n="players">hráči</span></option>
                         <option value="4" selected>4 <span data-i18n="players">hráči</span></option>
                         <option value="6">6 <span data-i18n="playersGen">hráčů</span></option>
                         <option value="8">8 <span data-i18n="playersGen">hráčů</span></option>
+                    </select>
+                    
+                    <!-- NOVÝ SELECT PRO POČET KOL -->
+                    <select id="round-count" class="player-count-select">
+                        <option value="3">3 <span data-i18n="rounds">kola</span></option>
+                        <option value="5" selected>5 <span data-i18n="rounds">kol</span></option>
+                        <option value="7">7 <span data-i18n="rounds">kol</span></option>
+                        <option value="10">10 <span data-i18n="rounds">kol</span></option>
+                        <option value="15">15 <span data-i18n="rounds">kol</span></option>
+                        <option value="20">20 <span data-i18n="rounds">kol</span></option>
                     </select>
                 </div>
                 
@@ -1153,7 +1166,9 @@
         
         <div id="host-panel" class="hidden" style="width: 100%; max-width: 600px; margin: 0 auto;">
             <div id="host-lobby-info" class="lobby-info waiting">
-                <span data-i18n="waitingForPlayers">Čekání na hráče...</span> (<span id="player-count">1</span>/<span id="max-count">4</span>)
+                <span data-i18n="waitingForPlayers">Čekání na hráče...</span> 
+                (<span id="player-count">1</span>/<span id="max-count">4</span>) | 
+                <span id="host-total-rounds">5</span> <span data-i18n="rounds">kol</span>
             </div>
             
             <div class="code-display" id="room-code" onclick="game.copyLink()">----</div>
@@ -1185,7 +1200,9 @@
             
             <div id="guest-lobby" class="hidden">
                 <div class="lobby-info waiting">
-                    <span data-i18n="waitingForHost">Čekání na hosta...</span> (<span id="guest-player-count">1</span>/<span id="guest-max-count">4</span>)
+                    <span data-i18n="waitingForHost">Čekání na hosta...</span> 
+                    (<span id="guest-player-count">1</span>/<span id="guest-max-count">4</span>) | 
+                    <span id="guest-total-rounds">5</span> <span data-i18n="rounds">kol</span>
                 </div>
                 
                 <div class="player-list" id="guest-lobby-player-list"></div>
@@ -1400,6 +1417,7 @@ const game = (function() {
             multiplayer: '👥 Multiplayer',
             players: 'hráči',
             playersGen: 'hráčů',
+            rounds: 'kol',
             createGame: '🎮 Vytvořit hru',
             joinGame: '🔗 Připojit se ke hře',
             optWorld: '🌍 Celý svět (194 zemí)',
@@ -1543,6 +1561,7 @@ const game = (function() {
             multiplayer: '👥 Multiplayer',
             players: 'players',
             playersGen: 'players',
+            rounds: 'rounds',
             createGame: '🎮 Create Game',
             joinGame: '🔗 Join Game',
             optWorld: '🌍 World (194 countries)',
@@ -2300,8 +2319,10 @@ const game = (function() {
         state.isHost = true;
         state.myId = socket.id;
         state.maxPlayers = data.maxPlayers;
+        state.totalRounds = data.totalRounds || 5; // Uložit počet kol
         document.getElementById('room-code').textContent = data.code;
         document.getElementById('max-count').textContent = data.maxPlayers;
+        document.getElementById('host-total-rounds').textContent = data.totalRounds || 5; // Zobrazit počet kol
         document.querySelector('.menu-grid').classList.add('hidden');
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         document.getElementById('host-panel').classList.remove('hidden');
@@ -2345,6 +2366,7 @@ const game = (function() {
         state.roomCode = data.code;
         state.isHost = false;
         state.myId = data.yourId;
+        state.totalRounds = data.totalRounds || 5; // Uložit počet kol
         document.querySelector('.menu-grid').classList.add('hidden');
         document.querySelector('.menu > .mp-section').classList.add('hidden');
         
@@ -2354,6 +2376,7 @@ const game = (function() {
         
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('guest-lobby').classList.remove('hidden');
+        document.getElementById('guest-total-rounds').textContent = data.totalRounds || 5; // Zobrazit počet kol
         document.getElementById('guest-chat-input').disabled = false;
         document.querySelector('#guest-lobby .chat-input button').disabled = false;
         document.getElementById('join-error').textContent = '';
@@ -2660,7 +2683,13 @@ const game = (function() {
     function startHost() {
         const continent = document.getElementById('continent-select').value;
         const maxPlayers = parseInt(document.getElementById('max-players').value);
-        socket.emit('create-room', { continent, maxPlayers });
+        const totalRounds = parseInt(document.getElementById('round-count').value); // NOVÉ
+        
+        socket.emit('create-room', { 
+            continent, 
+            maxPlayers,
+            totalRounds // NOVÉ
+        });
     }
 
     function joinGame() {
