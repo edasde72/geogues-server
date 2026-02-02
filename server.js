@@ -426,12 +426,14 @@ io.on("connection", socket => {
     io.emit("daily-leaderboard-update", top10);
   });
 
-  // EXISTUJÍCÍ MULTIPLAYER EVENTS (beze změny)
-  socket.on("create-room", ({ continent, maxPlayers }) => {
+  // EXISTUJÍCÍ MULTIPLAYER EVENTS (upravené pro volitelný počet kol)
+  socket.on("create-room", ({ continent, maxPlayers, totalRounds }) => {
     if (!rateLimit(socket.id, 'create', 3, 60000)) return;
     const code = generateCode();
     const c = validateContinent(continent);
     const playerLimit = Math.min(Math.max(parseInt(maxPlayers) || 4, 2), 8);
+    // Nová validace pro počet kol (min 1, max 50)
+    const rounds = Math.min(Math.max(parseInt(totalRounds) || 5, 1), 50);
     
     rooms.set(code, {
       host: socket.id,
@@ -443,7 +445,7 @@ io.on("connection", socket => {
         finished: false, 
         continent: c, 
         started: false,
-        totalRounds: 5,
+        totalRounds: rounds, // Použití parametru místo fixního 5
         processingGuess: false
       },
       chat: [],
@@ -452,8 +454,13 @@ io.on("connection", socket => {
     
     socket.join(code);
     socketRooms.set(socket.id, code);
-    socket.emit("room-created", { code, continent: c, maxPlayers: playerLimit });
-    console.log(`Vytvořena místnost ${code}, host: ${socket.id}`);
+    socket.emit("room-created", { 
+      code, 
+      continent: c, 
+      maxPlayers: playerLimit,
+      totalRounds: rounds // Poslat klientovi pro zobrazení
+    });
+    console.log(`Vytvořena místnost ${code}, host: ${socket.id}, kol: ${rounds}`);
   });
 
   socket.on("join-room", ({ code, nickname }) => {
@@ -472,7 +479,12 @@ io.on("connection", socket => {
     socket.join(code);
     socketRooms.set(socket.id, code);
     
-    socket.emit("joined-room", { code, continent: room.gameState.continent, yourId: socket.id });
+    socket.emit("joined-room", { 
+      code, 
+      continent: room.gameState.continent, 
+      yourId: socket.id,
+      totalRounds: room.gameState.totalRounds // Poslat počet kol
+    });
     socket.emit("chat-history", room.chat);
     
     socket.to(code).emit("player-joined", { name: name, count: room.players.length, max: room.maxPlayers });
@@ -520,7 +532,7 @@ io.on("connection", socket => {
     });
     
     startNewRound(code, room);
-    console.log(`Hra v místnosti ${code} začala`);
+    console.log(`Hra v místnosti ${code} začala, celkem ${room.gameState.totalRounds} kol`);
   });
 
   socket.on("correct-guess", () => {
